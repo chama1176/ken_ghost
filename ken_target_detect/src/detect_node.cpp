@@ -67,17 +67,40 @@ void VisionTargetDetector::topic_callback(const sensor_msgs::msg::Image::SharedP
 bool VisionTargetDetector::process_image(const cv::Mat& src_img, cv::Mat& dst_img, bool debug)
 {
     // convert to HSV and make mask
-    cv::Mat hsv_img, mask;
-    cv::Scalar mask_lower, mask_upper;
-    mask_lower = cv::Scalar(0, 100, 50);
-    mask_upper = cv::Scalar(30, 200, 200);
+    cv::Mat hsv_img;
     cv::cvtColor(src_img, hsv_img, CV_BGR2HSV_FULL);
-    cv::inRange(hsv_img, mask_lower, mask_upper, mask);
+
+    cv::Scalar mask_lower1 = cv::Scalar(0, 0, 0);
+    cv::Scalar mask_upper1 = cv::Scalar(30, 255, 255);
+    cv::Mat mask1;
+    cv::inRange(hsv_img, mask_lower1, mask_upper1, mask1);
+    cv::Scalar mask_lower2 = cv::Scalar(150, 0, 0);
+    cv::Scalar mask_upper2 = cv::Scalar(179, 255, 255);
+    cv::Mat mask2;
+    cv::inRange(hsv_img, mask_lower2, mask_upper2, mask2);
+    cv::Scalar mask_lower3 = cv::Scalar(30, 0, 0);
+    cv::Scalar mask_upper3 = cv::Scalar(90, 255, 255);
+    cv::Mat mask3;
+    cv::inRange(hsv_img, mask_lower3, mask_upper3, mask3);
+    cv::Scalar mask_lower4 = cv::Scalar(90, 0, 0);
+    cv::Scalar mask_upper4 = cv::Scalar(150, 255, 255);
+    cv::Mat mask4;
+    cv::inRange(hsv_img, mask_lower4, mask_upper4, mask4);
+
+
     if(debug)
     {
-        cv::Mat masked_img;
-        cv::bitwise_and(src_img, src_img, masked_img, mask);
-        cv::imshow("mask", masked_img);
+        cv::Mat masked_red_img;
+        cv::bitwise_and(src_img, src_img, masked_red_img, mask1 | mask2);
+        cv::imshow("mask red", masked_red_img);
+        cv::waitKey(3);
+        cv::Mat masked_green_img;
+        cv::bitwise_and(src_img, src_img, masked_green_img, mask3);
+        cv::imshow("mask green", masked_green_img);
+        cv::waitKey(3);
+        cv::Mat masked_blue_img;
+        cv::bitwise_and(src_img, src_img, masked_blue_img, mask4);
+        cv::imshow("mask blue", masked_blue_img);
         cv::waitKey(3);
     }
 
@@ -88,7 +111,7 @@ bool VisionTargetDetector::process_image(const cv::Mat& src_img, cv::Mat& dst_im
     cv::Mat stats;
     cv::Mat centroids;
 
-    int n_label = cv::connectedComponentsWithStats(mask, label_img, stats, centroids, 8, CV_16U);
+    int n_label = cv::connectedComponentsWithStats(mask1, label_img, stats, centroids, 8, CV_16U);
 
     for(int i = 1; i < n_label; ++i)
     {
