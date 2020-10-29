@@ -34,6 +34,10 @@ private:
     const cv::Mat & src_img, cv::Mat & mask, const int h_min, const int h_max, const int s_min,
     const int s_max, const int v_min, const int v_max);
 
+  void add_label(
+    cv::Mat & src_img, const cv::Mat & mask, const int area_size_thres,
+    const cv::Scalar label_color);
+
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
 };
 
@@ -53,6 +57,7 @@ VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
   this->declare_parameter("s_range_max", 0);
   this->declare_parameter("v_range_min", 0);
   this->declare_parameter("v_range_max", 0);
+  this->declare_parameter("area_size_thres", 0);
 }
 
 VisionTargetDetector::~VisionTargetDetector() { cv::destroyAllWindows(); }
@@ -93,6 +98,7 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
   rclcpp::Parameter s_range_min;
   rclcpp::Parameter v_range_max;
   rclcpp::Parameter v_range_min;
+  rclcpp::Parameter area_size_thres;
 
   this->get_parameter("red_h_range_max", red_h_range_max);
   this->get_parameter("red_h_range_min", red_h_range_min);
@@ -106,6 +112,7 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
   this->get_parameter("s_range_min", s_range_min);
   this->get_parameter("v_range_max", v_range_max);
   this->get_parameter("v_range_min", v_range_min);
+  this->get_parameter("area_size_thres", area_size_thres);
 
   cv::Mat red_mask;
   cv::Mat blue_mask;
@@ -144,40 +151,11 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
 
   dst_img = src_img;
 
-  // labeling
-  cv::Mat label_img;
-  cv::Mat stats;
-  cv::Mat centroids;
+  add_label(dst_img, red_mask, area_size_thres.as_int(), cv::Scalar(0, 0, 255));
+  add_label(dst_img, blue_mask, area_size_thres.as_int(), cv::Scalar(255, 0, 0));
+  add_label(dst_img, yellow_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 255));
+  add_label(dst_img, green_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 0));
 
-  int n_label = cv::connectedComponentsWithStats(red_mask, label_img, stats, centroids, 8, CV_16U);
-
-  for (int i = 1; i < n_label; ++i) {
-    if (stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_AREA] > 100) {
-      int x = static_cast<int>(centroids.ptr<double>(i)[0]);
-      int y = static_cast<int>(centroids.ptr<double>(i)[1]);
-      cv::circle(dst_img, cv::Point(x, y), 10, cv::Scalar(0, 255, 0));
-    }
-  }
-
-  // // make contour
-  // std::vector<std::vector<cv::Point>> contours;
-  // cv::findContours(mask, contours, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
-
-  // // make region
-  // std::vector<std::vector<cv::Point>> hull(contours.size());
-  // std::vector<cv::Rect> bound_rect(contours.size());
-  // for(size_t i = 0; i < contours.size(); i++)
-  // {
-  //     cv::convexHull(contours[i], hull[i]);
-  //     bound_rect[i] = cv::boundingRect(hull[i]);
-  // }
-
-  // // draw rect
-  // dst_img = src_img;
-  // for(size_t i = 0; i < bound_rect.size(); i++)
-  // {
-  //     cv::rectangle(dst_img, bound_rect[i], cv::Scalar(0, 255, 0));
-  // }
   return true;
 }
 
@@ -199,6 +177,31 @@ void VisionTargetDetector::make_hsv_mask(
     cv::Mat mask2;
     cv::inRange(src_img, mask_lower2, mask_upper2, mask2);
     mask = mask1 | mask2;
+  }
+}
+
+void VisionTargetDetector::add_label(
+  cv::Mat & src_img, const cv::Mat & mask, const int area_size_thres, const cv::Scalar label_color)
+{
+  // labeling
+  // Check connected area size and position
+  cv::Mat label_img;
+  cv::Mat stats;
+  cv::Mat centroids;
+
+  int red_label = cv::connectedComponentsWithStats(mask, label_img, stats, centroids, 8, CV_16U);
+  for (int i = 1; i < red_label; ++i) {
+    if (stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_AREA] > area_size_thres) {
+      int x = static_cast<int>(centroids.ptr<double>(i)[0]);
+      int y = static_cast<int>(centroids.ptr<double>(i)[1]);
+      cv::circle(src_img, cv::Point(x, y), 5, label_color, -1);
+
+      int left = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_LEFT];
+      int top = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_TOP];
+      int width = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_WIDTH];
+      int height = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_HEIGHT];
+      cv::rectangle(src_img, cv::Rect(left, top, width, height), label_color, 2);
+    }
   }
 }
 
