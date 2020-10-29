@@ -1,0 +1,5 @@
+vision_target_detector:
+  ros__parameters:
+    red_h_range_min: 10
+    red_h_range_max: 80
+
