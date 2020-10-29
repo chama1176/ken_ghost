@@ -1,5 +1,16 @@
 vision_target_detector:
   ros__parameters:
-    red_h_range_min: 10
-    red_h_range_max: 80
+    red_h_range_max: 10
+    red_h_range_min: 170
+    blue_h_range_max: 160
+    blue_h_range_min: 140
+    yellow_h_range_max: 35
+    yellow_h_range_min: 28
+    green_h_range_max: 120
+    green_h_range_min: 50
+    s_range_max: 255
+    s_range_min: 50
+    v_range_max: 255
+    v_range_min: 50
+
 

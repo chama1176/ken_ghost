@@ -30,6 +30,10 @@ private:
 
   bool process_image(const cv::Mat & src_img, cv::Mat & dst_img, bool debug = false);
 
+  void make_hsv_mask(
+    const cv::Mat & src_img, cv::Mat & mask, const int h_min, const int h_max, const int s_min,
+    const int s_max, const int v_min, const int v_max);
+
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
 };
 
@@ -39,6 +43,16 @@ VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
     "/camera/color/image_raw", 10, std::bind(&VisionTargetDetector ::topic_callback, this, _1));
   this->declare_parameter("red_h_range_min", 0);
   this->declare_parameter("red_h_range_max", 0);
+  this->declare_parameter("blue_h_range_min", 0);
+  this->declare_parameter("blue_h_range_max", 0);
+  this->declare_parameter("green_h_range_min", 0);
+  this->declare_parameter("green_h_range_max", 0);
+  this->declare_parameter("yellow_h_range_min", 0);
+  this->declare_parameter("yellow_h_range_max", 0);
+  this->declare_parameter("s_range_min", 0);
+  this->declare_parameter("s_range_max", 0);
+  this->declare_parameter("v_range_min", 0);
+  this->declare_parameter("v_range_max", 0);
 }
 
 VisionTargetDetector::~VisionTargetDetector() { cv::destroyAllWindows(); }
@@ -46,7 +60,6 @@ VisionTargetDetector::~VisionTargetDetector() { cv::destroyAllWindows(); }
 void VisionTargetDetector::topic_callback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
   cv_bridge::CvImagePtr cv_ptr;
-  cv::Mat in_img;
   cv::Mat out_img;
   try {
     cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
@@ -54,13 +67,6 @@ void VisionTargetDetector::topic_callback(const sensor_msgs::msg::Image::SharedP
     RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     return;
   }
-
-  rclcpp::Parameter red_h_range_min;
-  rclcpp::Parameter red_h_range_max;
-  this->get_parameter("red_h_range_min", red_h_range_min);
-  this->get_parameter("red_h_range_max", red_h_range_max);
-  RCLCPP_INFO(
-    this->get_logger(), "Hello %d %d", red_h_range_min.as_int(), red_h_range_max.as_int());
 
   process_image(cv_ptr->image, out_img, true);
   cv::imshow(OPENCV_WINDOW, out_img);
@@ -75,35 +81,64 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
   cv::Mat hsv_img;
   cv::cvtColor(src_img, hsv_img, CV_BGR2HSV_FULL);
 
-  cv::Scalar mask_lower1 = cv::Scalar(0, 0, 0);
-  cv::Scalar mask_upper1 = cv::Scalar(30, 255, 255);
-  cv::Mat mask1;
-  cv::inRange(hsv_img, mask_lower1, mask_upper1, mask1);
-  cv::Scalar mask_lower2 = cv::Scalar(150, 0, 0);
-  cv::Scalar mask_upper2 = cv::Scalar(179, 255, 255);
-  cv::Mat mask2;
-  cv::inRange(hsv_img, mask_lower2, mask_upper2, mask2);
-  cv::Scalar mask_lower3 = cv::Scalar(30, 0, 0);
-  cv::Scalar mask_upper3 = cv::Scalar(90, 255, 255);
-  cv::Mat mask3;
-  cv::inRange(hsv_img, mask_lower3, mask_upper3, mask3);
-  cv::Scalar mask_lower4 = cv::Scalar(90, 0, 0);
-  cv::Scalar mask_upper4 = cv::Scalar(150, 255, 255);
-  cv::Mat mask4;
-  cv::inRange(hsv_img, mask_lower4, mask_upper4, mask4);
+  rclcpp::Parameter red_h_range_max;
+  rclcpp::Parameter red_h_range_min;
+  rclcpp::Parameter blue_h_range_max;
+  rclcpp::Parameter blue_h_range_min;
+  rclcpp::Parameter yellow_h_range_max;
+  rclcpp::Parameter yellow_h_range_min;
+  rclcpp::Parameter green_h_range_max;
+  rclcpp::Parameter green_h_range_min;
+  rclcpp::Parameter s_range_max;
+  rclcpp::Parameter s_range_min;
+  rclcpp::Parameter v_range_max;
+  rclcpp::Parameter v_range_min;
+
+  this->get_parameter("red_h_range_max", red_h_range_max);
+  this->get_parameter("red_h_range_min", red_h_range_min);
+  this->get_parameter("blue_h_range_max", blue_h_range_max);
+  this->get_parameter("blue_h_range_min", blue_h_range_min);
+  this->get_parameter("yellow_h_range_max", yellow_h_range_max);
+  this->get_parameter("yellow_h_range_min", yellow_h_range_min);
+  this->get_parameter("green_h_range_max", green_h_range_max);
+  this->get_parameter("green_h_range_min", green_h_range_min);
+  this->get_parameter("s_range_max", s_range_max);
+  this->get_parameter("s_range_min", s_range_min);
+  this->get_parameter("v_range_max", v_range_max);
+  this->get_parameter("v_range_min", v_range_min);
+
+  cv::Mat red_mask;
+  cv::Mat blue_mask;
+  cv::Mat yellow_mask;
+  cv::Mat green_mask;
+
+  make_hsv_mask(
+    hsv_img, red_mask, red_h_range_min.as_int(), red_h_range_max.as_int(), s_range_min.as_int(),
+    s_range_max.as_int(), v_range_min.as_int(), v_range_max.as_int());
+  make_hsv_mask(
+    hsv_img, blue_mask, blue_h_range_min.as_int(), blue_h_range_max.as_int(), s_range_min.as_int(),
+    s_range_max.as_int(), v_range_min.as_int(), v_range_max.as_int());
+  make_hsv_mask(
+    hsv_img, yellow_mask, yellow_h_range_min.as_int(), yellow_h_range_max.as_int(),
+    s_range_min.as_int(), s_range_max.as_int(), v_range_min.as_int(), v_range_max.as_int());
+  make_hsv_mask(
+    hsv_img, green_mask, green_h_range_min.as_int(), green_h_range_max.as_int(),
+    s_range_min.as_int(), s_range_max.as_int(), v_range_min.as_int(), v_range_max.as_int());
 
   if (debug) {
     cv::Mat masked_red_img;
-    cv::bitwise_and(src_img, src_img, masked_red_img, mask1 | mask2);
+    cv::bitwise_and(src_img, src_img, masked_red_img, red_mask);
     cv::imshow("mask red", masked_red_img);
-    cv::waitKey(3);
-    cv::Mat masked_green_img;
-    cv::bitwise_and(src_img, src_img, masked_green_img, mask3);
-    cv::imshow("mask green", masked_green_img);
-    cv::waitKey(3);
     cv::Mat masked_blue_img;
-    cv::bitwise_and(src_img, src_img, masked_blue_img, mask4);
+    cv::bitwise_and(src_img, src_img, masked_blue_img, blue_mask);
     cv::imshow("mask blue", masked_blue_img);
+    cv::Mat masked_yellow_img;
+    cv::bitwise_and(src_img, src_img, masked_yellow_img, yellow_mask);
+    cv::imshow("mask yellow", masked_yellow_img);
+    cv::Mat masked_green_img;
+    cv::bitwise_and(src_img, src_img, masked_green_img, green_mask);
+    cv::imshow("mask green", masked_green_img);
+
     cv::waitKey(3);
   }
 
@@ -114,7 +149,7 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
   cv::Mat stats;
   cv::Mat centroids;
 
-  int n_label = cv::connectedComponentsWithStats(mask1, label_img, stats, centroids, 8, CV_16U);
+  int n_label = cv::connectedComponentsWithStats(red_mask, label_img, stats, centroids, 8, CV_16U);
 
   for (int i = 1; i < n_label; ++i) {
     if (stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_AREA] > 100) {
@@ -144,6 +179,27 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
   //     cv::rectangle(dst_img, bound_rect[i], cv::Scalar(0, 255, 0));
   // }
   return true;
+}
+
+void VisionTargetDetector::make_hsv_mask(
+  const cv::Mat & src_img, cv::Mat & mask, const int h_min, const int h_max, const int s_min,
+  const int s_max, const int v_min, const int v_max)
+{
+  if (h_min <= h_max) {
+    cv::Scalar mask_lower1 = cv::Scalar(h_min, s_min, v_min);
+    cv::Scalar mask_upper1 = cv::Scalar(h_max, s_max, v_max);
+    cv::inRange(src_img, mask_lower1, mask_upper1, mask);
+  } else {
+    cv::Scalar mask_lower1 = cv::Scalar(h_min, s_min, v_min);
+    cv::Scalar mask_upper1 = cv::Scalar(255, s_max, v_max);
+    cv::Mat mask1;
+    cv::inRange(src_img, mask_lower1, mask_upper1, mask1);
+    cv::Scalar mask_lower2 = cv::Scalar(0, s_min, v_min);
+    cv::Scalar mask_upper2 = cv::Scalar(h_max, s_max, v_max);
+    cv::Mat mask2;
+    cv::inRange(src_img, mask_lower2, mask_upper2, mask2);
+    mask = mask1 | mask2;
+  }
 }
 
 int main(int argc, char * argv[])
