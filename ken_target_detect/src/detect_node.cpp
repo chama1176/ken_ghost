@@ -6,6 +6,11 @@
 
 #include <chrono>
 #include <functional>
+
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/time_synchronizer.h>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/string.hpp>
@@ -26,7 +31,9 @@ public:
   ~VisionTargetDetector();
 
 private:
-  void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg);
+  void topic_callback(
+    const sensor_msgs::msg::Image::SharedPtr color_msg,
+    const sensor_msgs::msg::Image::SharedPtr depth_msg);
 
   bool process_image(const cv::Mat & src_img, cv::Mat & dst_img, bool debug = false);
 
@@ -43,8 +50,20 @@ private:
 
 VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
 {
-  subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-    "/camera/color/image_raw", 10, std::bind(&VisionTargetDetector ::topic_callback, this, _1));
+  std::cout << "Start Initialization" << std::endl;
+  RCLCPP_INFO(this->get_logger(), "Hello");
+
+  message_filters::Subscriber<sensor_msgs::msg::Image> color_sub(this, "/camera/color/image_raw");
+  message_filters::Subscriber<sensor_msgs::msg::Image> depth_sub(
+    this, "/camera/aligned_depth_to_color/image_raw");
+  message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image> sync(
+    color_sub, depth_sub, 10);
+  // typedef message_filters::sync_policies::ApproximateTime<
+  //   sensor_msgs::msg::Image, sensor_msgs::msg::Image>
+  //   sync_policy;
+  // message_filters::Synchronizer<sync_policy> sync(sync_policy(10), color_sub, depth_sub);
+  sync.registerCallback(&VisionTargetDetector ::topic_callback, this);
+
   this->declare_parameter("red_h_range_min", 0);
   this->declare_parameter("red_h_range_max", 0);
   this->declare_parameter("blue_h_range_min", 0);
@@ -58,26 +77,38 @@ VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
   this->declare_parameter("v_range_min", 0);
   this->declare_parameter("v_range_max", 0);
   this->declare_parameter("area_size_thres", 0);
+
+  std::cout << "Finish Initialization" << std::endl;
 }
 
 VisionTargetDetector::~VisionTargetDetector() { cv::destroyAllWindows(); }
 
-void VisionTargetDetector::topic_callback(const sensor_msgs::msg::Image::SharedPtr msg)
+void VisionTargetDetector::topic_callback(
+  const sensor_msgs::msg::Image::SharedPtr color_msg,
+  const sensor_msgs::msg::Image::SharedPtr depth_msg)
 {
-  cv_bridge::CvImagePtr cv_ptr;
-  cv::Mat out_img;
+  RCLCPP_INFO(this->get_logger(), "I heard:");
+  cv_bridge::CvImagePtr color_cv_ptr;
   try {
-    cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+    color_cv_ptr = cv_bridge::toCvCopy(color_msg, "bgr8");
   } catch (cv_bridge::Exception & e) {
     RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     return;
   }
 
-  process_image(cv_ptr->image, out_img, true);
+  // cv_bridge::CvImagePtr depth_cv_ptr;
+  // try {
+  //   depth_cv_ptr = cv_bridge::toCvCopy(depth_msg, "bgr8");
+  // } catch (cv_bridge::Exception & e) {
+  //   RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+  //   return;
+  // }
+
+  cv::Mat out_img;
+
+  process_image(color_cv_ptr->image, out_img, true);
   cv::imshow(OPENCV_WINDOW, out_img);
   cv::waitKey(3);
-
-  RCLCPP_INFO(this->get_logger(), "I heard:");
 }
 
 bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_img, bool debug)
