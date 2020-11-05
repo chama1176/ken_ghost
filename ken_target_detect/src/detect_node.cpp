@@ -12,6 +12,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/string.hpp>
 
@@ -37,14 +38,16 @@ private:
     const sensor_msgs::msg::Image::ConstSharedPtr & color_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg);
 
-  bool process_image(const cv::Mat & src_img, cv::Mat & dst_img, bool debug = false);
+  bool process_image(
+    const cv::Mat & src_color_img, const cv::Mat & src_depth_img, cv::Mat & dst_img,
+    bool debug = false);
 
   void make_hsv_mask(
-    const cv::Mat & src_img, cv::Mat & mask, const int h_min, const int h_max, const int s_min,
-    const int s_max, const int v_min, const int v_max);
+    const cv::Mat & src_color_img, cv::Mat & mask, const int h_min, const int h_max,
+    const int s_min, const int s_max, const int v_min, const int v_max);
 
   void add_label(
-    cv::Mat & src_img, const cv::Mat & mask, const int area_size_thres,
+    cv::Mat & src_color_img, const cv::Mat & mask, const int area_size_thres,
     const cv::Scalar label_color);
 
   message_filters::Subscriber<sensor_msgs::msg::Image> color_sub_;
@@ -80,6 +83,7 @@ VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
   this->declare_parameter("v_range_min", 0);
   this->declare_parameter("v_range_max", 0);
   this->declare_parameter("area_size_thres", 0);
+  this->declare_parameter("depth_detection_area_thres", 0);
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -91,34 +95,36 @@ void VisionTargetDetector::topic_callback(
   const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg)
 {
   RCLCPP_INFO(this->get_logger(), "I heard:");
+
   cv_bridge::CvImagePtr color_cv_ptr;
   try {
-    color_cv_ptr = cv_bridge::toCvCopy(color_msg, "bgr8");
+    color_cv_ptr = cv_bridge::toCvCopy(color_msg, sensor_msgs::image_encodings::BGR8);
   } catch (cv_bridge::Exception & e) {
     RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     return;
   }
 
-  // cv_bridge::CvImagePtr depth_cv_ptr;
-  // try {
-  //   depth_cv_ptr = cv_bridge::toCvCopy(depth_msg, "bgr8");
-  // } catch (cv_bridge::Exception & e) {
-  //   RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
-  //   return;
-  // }
+  cv_bridge::CvImagePtr depth_cv_ptr;
+  try {
+    depth_cv_ptr = cv_bridge::toCvCopy(depth_msg, sensor_msgs::image_encodings::TYPE_16UC1);
+  } catch (cv_bridge::Exception & e) {
+    RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+    return;
+  }
 
   cv::Mat out_img;
 
-  process_image(color_cv_ptr->image, out_img, true);
+  process_image(color_cv_ptr->image, depth_cv_ptr->image, out_img, true);
   cv::imshow(OPENCV_WINDOW, out_img);
   cv::waitKey(3);
 }
 
-bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_img, bool debug)
+bool VisionTargetDetector::process_image(
+  const cv::Mat & src_color_img, const cv::Mat & src_depth_img, cv::Mat & dst_img, bool debug)
 {
   // convert to HSV and make mask
   cv::Mat hsv_img;
-  cv::cvtColor(src_img, hsv_img, CV_BGR2HSV_FULL);
+  cv::cvtColor(src_color_img, hsv_img, CV_BGR2HSV_FULL);
 
   rclcpp::Parameter red_h_range_max;
   rclcpp::Parameter red_h_range_min;
@@ -133,6 +139,7 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
   rclcpp::Parameter v_range_max;
   rclcpp::Parameter v_range_min;
   rclcpp::Parameter area_size_thres;
+  rclcpp::Parameter depth_detection_area_thres;
 
   this->get_parameter("red_h_range_max", red_h_range_max);
   this->get_parameter("red_h_range_min", red_h_range_min);
@@ -147,6 +154,13 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
   this->get_parameter("v_range_max", v_range_max);
   this->get_parameter("v_range_min", v_range_min);
   this->get_parameter("area_size_thres", area_size_thres);
+  this->get_parameter("depth_detection_area_thres", depth_detection_area_thres);
+
+  cv::Mat depth_mask;
+  cv::inRange(src_depth_img, 0, depth_detection_area_thres.as_int(), depth_mask);
+  cv::Mat masked_color_img;
+  cv::bitwise_and(src_color_img, src_color_img, masked_color_img, depth_mask);
+  cv::imshow("mask depth color", masked_color_img);
 
   cv::Mat red_mask;
   cv::Mat blue_mask;
@@ -168,22 +182,22 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
 
   if (debug) {
     cv::Mat masked_red_img;
-    cv::bitwise_and(src_img, src_img, masked_red_img, red_mask);
+    cv::bitwise_and(src_color_img, src_color_img, masked_red_img, red_mask);
     cv::imshow("mask red", masked_red_img);
     cv::Mat masked_blue_img;
-    cv::bitwise_and(src_img, src_img, masked_blue_img, blue_mask);
+    cv::bitwise_and(src_color_img, src_color_img, masked_blue_img, blue_mask);
     cv::imshow("mask blue", masked_blue_img);
     cv::Mat masked_yellow_img;
-    cv::bitwise_and(src_img, src_img, masked_yellow_img, yellow_mask);
+    cv::bitwise_and(src_color_img, src_color_img, masked_yellow_img, yellow_mask);
     cv::imshow("mask yellow", masked_yellow_img);
     cv::Mat masked_green_img;
-    cv::bitwise_and(src_img, src_img, masked_green_img, green_mask);
+    cv::bitwise_and(src_color_img, src_color_img, masked_green_img, green_mask);
     cv::imshow("mask green", masked_green_img);
 
     cv::waitKey(3);
   }
 
-  dst_img = src_img;
+  dst_img = src_color_img;
 
   add_label(dst_img, red_mask, area_size_thres.as_int(), cv::Scalar(0, 0, 255));
   add_label(dst_img, blue_mask, area_size_thres.as_int(), cv::Scalar(255, 0, 0));
@@ -194,28 +208,29 @@ bool VisionTargetDetector::process_image(const cv::Mat & src_img, cv::Mat & dst_
 }
 
 void VisionTargetDetector::make_hsv_mask(
-  const cv::Mat & src_img, cv::Mat & mask, const int h_min, const int h_max, const int s_min,
+  const cv::Mat & src_color_img, cv::Mat & mask, const int h_min, const int h_max, const int s_min,
   const int s_max, const int v_min, const int v_max)
 {
   if (h_min <= h_max) {
     cv::Scalar mask_lower1 = cv::Scalar(h_min, s_min, v_min);
     cv::Scalar mask_upper1 = cv::Scalar(h_max, s_max, v_max);
-    cv::inRange(src_img, mask_lower1, mask_upper1, mask);
+    cv::inRange(src_color_img, mask_lower1, mask_upper1, mask);
   } else {
     cv::Scalar mask_lower1 = cv::Scalar(h_min, s_min, v_min);
     cv::Scalar mask_upper1 = cv::Scalar(255, s_max, v_max);
     cv::Mat mask1;
-    cv::inRange(src_img, mask_lower1, mask_upper1, mask1);
+    cv::inRange(src_color_img, mask_lower1, mask_upper1, mask1);
     cv::Scalar mask_lower2 = cv::Scalar(0, s_min, v_min);
     cv::Scalar mask_upper2 = cv::Scalar(h_max, s_max, v_max);
     cv::Mat mask2;
-    cv::inRange(src_img, mask_lower2, mask_upper2, mask2);
+    cv::inRange(src_color_img, mask_lower2, mask_upper2, mask2);
     mask = mask1 | mask2;
   }
 }
 
 void VisionTargetDetector::add_label(
-  cv::Mat & src_img, const cv::Mat & mask, const int area_size_thres, const cv::Scalar label_color)
+  cv::Mat & src_color_img, const cv::Mat & mask, const int area_size_thres,
+  const cv::Scalar label_color)
 {
   // labeling
   // Check connected area size and position
@@ -228,13 +243,13 @@ void VisionTargetDetector::add_label(
     if (stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_AREA] > area_size_thres) {
       int x = static_cast<int>(centroids.ptr<double>(i)[0]);
       int y = static_cast<int>(centroids.ptr<double>(i)[1]);
-      cv::circle(src_img, cv::Point(x, y), 5, label_color, -1);
+      cv::circle(src_color_img, cv::Point(x, y), 5, label_color, -1);
 
       int left = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_LEFT];
       int top = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_TOP];
       int width = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_WIDTH];
       int height = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_HEIGHT];
-      cv::rectangle(src_img, cv::Rect(left, top, width, height), label_color, 2);
+      cv::rectangle(src_color_img, cv::Rect(left, top, width, height), label_color, 2);
     }
   }
 }

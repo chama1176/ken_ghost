@@ -13,5 +13,6 @@ vision_target_detector:
     v_range_max: 255
     v_range_min: 50
     area_size_thres: 900
+    depth_detection_area_thres: 1000
 
 

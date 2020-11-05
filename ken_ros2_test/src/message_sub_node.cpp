@@ -63,7 +63,8 @@ void MinimalSubscriber::topic_callback(
   const sensor_msgs::msg::CameraInfo::ConstSharedPtr & info_msg)
 {
   RCLCPP_INFO(this->get_logger(), "I heard:");
-  std::cout << "heard" << std::endl;
+  std::cout << color_msg->header.frame_id << std::endl;
+  std::cout << info_msg->header.frame_id << std::endl;
 }
 
 int main(int argc, char * argv[])
