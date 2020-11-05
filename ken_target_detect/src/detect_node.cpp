@@ -239,8 +239,8 @@ void VisionTargetDetector::add_label(
   cv::Mat stats;
   cv::Mat centroids;
 
-  int red_label = cv::connectedComponentsWithStats(mask, label_img, stats, centroids, 8, CV_16U);
-  for (int i = 1; i < red_label; ++i) {
+  int label = cv::connectedComponentsWithStats(mask, label_img, stats, centroids, 8, CV_16U);
+  for (int i = 1; i < label; ++i) {
     if (stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_AREA] > area_size_thres) {
       int x = static_cast<int>(centroids.ptr<double>(i)[0]);
       int y = static_cast<int>(centroids.ptr<double>(i)[1]);
