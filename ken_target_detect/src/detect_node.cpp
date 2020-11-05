@@ -16,6 +16,8 @@
 #include <std_msgs/msg/string.hpp>
 
 using std::placeholders::_1;
+using std::placeholders::_2;
+
 static const std::string OPENCV_WINDOW = "Image window";
 
 class VisionTargetDetector : public rclcpp::Node
@@ -32,8 +34,8 @@ public:
 
 private:
   void topic_callback(
-    const sensor_msgs::msg::Image::SharedPtr color_msg,
-    const sensor_msgs::msg::Image::SharedPtr depth_msg);
+    const sensor_msgs::msg::Image::ConstSharedPtr & color_msg,
+    const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg);
 
   bool process_image(const cv::Mat & src_img, cv::Mat & dst_img, bool debug = false);
 
@@ -45,24 +47,25 @@ private:
     cv::Mat & src_img, const cv::Mat & mask, const int area_size_thres,
     const cv::Scalar label_color);
 
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+  message_filters::Subscriber<sensor_msgs::msg::Image> color_sub_;
+  message_filters::Subscriber<sensor_msgs::msg::Image> depth_sub_;
+
+  typedef message_filters::sync_policies::ApproximateTime<
+    sensor_msgs::msg::Image, sensor_msgs::msg::Image>
+    SyncPolicy;
+
+  typedef message_filters::Synchronizer<SyncPolicy> Sync;
+
+  std::shared_ptr<Sync> sync_;
 };
 
 VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
 {
-  std::cout << "Start Initialization" << std::endl;
-  RCLCPP_INFO(this->get_logger(), "Hello");
+  color_sub_.subscribe(this, "/camera/color/image_raw");
+  depth_sub_.subscribe(this, "/camera/aligned_depth_to_color/image_raw");
 
-  message_filters::Subscriber<sensor_msgs::msg::Image> color_sub(this, "/camera/color/image_raw");
-  message_filters::Subscriber<sensor_msgs::msg::Image> depth_sub(
-    this, "/camera/aligned_depth_to_color/image_raw");
-  message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image> sync(
-    color_sub, depth_sub, 10);
-  // typedef message_filters::sync_policies::ApproximateTime<
-  //   sensor_msgs::msg::Image, sensor_msgs::msg::Image>
-  //   sync_policy;
-  // message_filters::Synchronizer<sync_policy> sync(sync_policy(10), color_sub, depth_sub);
-  sync.registerCallback(&VisionTargetDetector ::topic_callback, this);
+  sync_.reset(new Sync(SyncPolicy(10), color_sub_, depth_sub_));
+  sync_->registerCallback(std::bind(&VisionTargetDetector::topic_callback, this, _1, _2));
 
   this->declare_parameter("red_h_range_min", 0);
   this->declare_parameter("red_h_range_max", 0);
@@ -84,8 +87,8 @@ VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
 VisionTargetDetector::~VisionTargetDetector() { cv::destroyAllWindows(); }
 
 void VisionTargetDetector::topic_callback(
-  const sensor_msgs::msg::Image::SharedPtr color_msg,
-  const sensor_msgs::msg::Image::SharedPtr depth_msg)
+  const sensor_msgs::msg::Image::ConstSharedPtr & color_msg,
+  const sensor_msgs::msg::Image::ConstSharedPtr & depth_msg)
 {
   RCLCPP_INFO(this->get_logger(), "I heard:");
   cv_bridge::CvImagePtr color_cv_ptr;
