@@ -11,6 +11,8 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
+#include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/pose_array.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -40,16 +42,25 @@ private:
 
   bool process_image(
     const cv::Mat & src_color_img, const cv::Mat & src_depth_img, cv::Mat & dst_img,
-    bool debug = false);
+    geometry_msgs::msg::PoseArray & red_target_pose,
+    geometry_msgs::msg::PoseArray & blue_target_pose,
+    geometry_msgs::msg::PoseArray & yellow_target_pose,
+    geometry_msgs::msg::PoseArray & green_target_pose, bool debug = false);
 
   void make_hsv_mask(
     const cv::Mat & src_color_img, cv::Mat & mask, const int h_min, const int h_max,
     const int s_min, const int s_max, const int v_min, const int v_max);
 
   void add_label(
-    cv::Mat & src_color_img, const cv::Mat & mask, const int area_size_thres,
-    const cv::Scalar label_color);
+    cv::Mat & src_color_img, const cv::Mat & src_depth_img, const cv::Mat & mask,
+    const int area_size_thres, const cv::Scalar label_color,
+    geometry_msgs::msg::PoseArray & target_pose);
 
+  void calc_3d_point(
+    const cv::Point & point, const double & fx, const double & fy, const cv::Mat & src_depth,
+    cv::Point3d & point_3d);
+
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr red_target_publisher_;
   message_filters::Subscriber<sensor_msgs::msg::Image> color_sub_;
   message_filters::Subscriber<sensor_msgs::msg::Image> depth_sub_;
 
@@ -60,10 +71,16 @@ private:
   typedef message_filters::Synchronizer<SyncPolicy> Sync;
 
   std::shared_ptr<Sync> sync_;
+  double fx_;
+  double fy_;
+  double cx_;
+  double cy_;
 };
 
 VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
 {
+  red_target_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("red_target", 1);
+
   color_sub_.subscribe(this, "/camera/color/image_raw");
   depth_sub_.subscribe(this, "/camera/aligned_depth_to_color/image_raw");
 
@@ -84,6 +101,15 @@ VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
   this->declare_parameter("v_range_max", 0);
   this->declare_parameter("area_size_thres", 0);
   this->declare_parameter("depth_detection_area_thres", 0);
+  this->declare_parameter("fx", 0.0);
+  this->declare_parameter("fy", 0.0);
+  this->declare_parameter("cx", 0.0);
+  this->declare_parameter("cy", 0.0);
+
+  this->get_parameter("fx", fx_);
+  this->get_parameter("fy", fy_);
+  this->get_parameter("cx", cx_);
+  this->get_parameter("cy", cy_);
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -113,14 +139,29 @@ void VisionTargetDetector::topic_callback(
   }
 
   cv::Mat out_img;
+  geometry_msgs::msg::PoseArray red_target;
+  geometry_msgs::msg::PoseArray blue_target;
+  geometry_msgs::msg::PoseArray yellow_target;
+  geometry_msgs::msg::PoseArray green_target;
+  red_target.header = depth_msg->header;
+  blue_target.header = depth_msg->header;
+  yellow_target.header = depth_msg->header;
+  green_target.header = depth_msg->header;
 
-  process_image(color_cv_ptr->image, depth_cv_ptr->image, out_img, true);
+  process_image(
+    color_cv_ptr->image, depth_cv_ptr->image, out_img, red_target, blue_target, yellow_target,
+    green_target, true);
   cv::imshow(OPENCV_WINDOW, out_img);
   cv::waitKey(3);
+
+  red_target_publisher_->publish(red_target);
 }
 
 bool VisionTargetDetector::process_image(
-  const cv::Mat & src_color_img, const cv::Mat & src_depth_img, cv::Mat & dst_img, bool debug)
+  const cv::Mat & src_color_img, const cv::Mat & src_depth_img, cv::Mat & dst_img,
+  geometry_msgs::msg::PoseArray & red_target_pose, geometry_msgs::msg::PoseArray & blue_target_pose,
+  geometry_msgs::msg::PoseArray & yellow_target_pose,
+  geometry_msgs::msg::PoseArray & green_target_pose, bool debug)
 {
   // convert to HSV and make mask
   cv::Mat hsv_img;
@@ -200,10 +241,18 @@ bool VisionTargetDetector::process_image(
 
   dst_img = src_color_img;
 
-  add_label(dst_img, red_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(0, 0, 255));
-  add_label(dst_img, blue_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(255, 0, 0));
-  add_label(dst_img, yellow_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 255));
-  add_label(dst_img, green_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 0));
+  add_label(
+    dst_img, src_depth_img, red_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(0, 0, 255),
+    red_target_pose);
+  add_label(
+    dst_img, src_depth_img, blue_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(255, 0, 0),
+    blue_target_pose);
+  add_label(
+    dst_img, src_depth_img, yellow_mask & depth_mask, area_size_thres.as_int(),
+    cv::Scalar(0, 255, 255), yellow_target_pose);
+  add_label(
+    dst_img, src_depth_img, green_mask & depth_mask, area_size_thres.as_int(),
+    cv::Scalar(0, 255, 0), green_target_pose);
 
   return true;
 }
@@ -230,8 +279,9 @@ void VisionTargetDetector::make_hsv_mask(
 }
 
 void VisionTargetDetector::add_label(
-  cv::Mat & src_color_img, const cv::Mat & mask, const int area_size_thres,
-  const cv::Scalar label_color)
+  cv::Mat & src_color_img, const cv::Mat & src_depth_img, const cv::Mat & mask,
+  const int area_size_thres, const cv::Scalar label_color,
+  geometry_msgs::msg::PoseArray & target_pose)
 {
   // labeling
   // Check connected area size and position
@@ -251,8 +301,33 @@ void VisionTargetDetector::add_label(
       int width = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_WIDTH];
       int height = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_HEIGHT];
       cv::rectangle(src_color_img, cv::Rect(left, top, width, height), label_color, 2);
+      cv::Point3d target_point_tmp;
+      calc_3d_point(cv::Point(x, y), fx_, fy_, src_depth_img, target_point_tmp);
+      geometry_msgs::msg::Pose target_pose_tmp;
+      target_pose_tmp.position.x = target_point_tmp.x;
+      target_pose_tmp.position.y = target_point_tmp.y;
+      target_pose_tmp.position.z = target_point_tmp.z;
+      target_pose_tmp.orientation.w = 1.0;
+      target_pose.poses.push_back(target_pose_tmp);
     }
   }
+}
+
+void VisionTargetDetector::calc_3d_point(
+  const cv::Point & point, const double & fx, const double & fy, const cv::Mat & src_depth,
+  cv::Point3d & point_3d)
+{
+  double x_over_z = (double)(point.x - cx_) / fx;
+  double y_over_z = (double)(point.y - cy_) / fy;
+
+  double d = (double)src_depth.at<ushort>(point.y, point.x) / 1000.0;
+  //  point_3d.z = d / std::sqrt(1 + x_over_z * x_over_z + y_over_z * y_over_z);
+  point_3d.z = d;
+
+  std::cout << " px: " << point.x << " py: " << point.y << " d: " << d << std::endl;
+
+  point_3d.x = x_over_z * point_3d.z;
+  point_3d.y = y_over_z * point_3d.z;
 }
 
 int main(int argc, char * argv[])

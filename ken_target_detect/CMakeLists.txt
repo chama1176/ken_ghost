@@ -21,6 +21,7 @@ find_package(rclcpp REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 
 
@@ -29,7 +30,7 @@ find_package(cv_bridge REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 add_executable(detect src/detect_node.cpp)
-ament_target_dependencies(detect rclcpp message_filters std_msgs sensor_msgs cv_bridge opencv2) 
+ament_target_dependencies(detect rclcpp message_filters std_msgs sensor_msgs geometry_msgs cv_bridge opencv2) 
 
 install(TARGETS
   detect
