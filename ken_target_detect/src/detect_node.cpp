@@ -158,9 +158,6 @@ bool VisionTargetDetector::process_image(
 
   cv::Mat depth_mask;
   cv::inRange(src_depth_img, 0, depth_detection_area_thres.as_int(), depth_mask);
-  cv::Mat masked_color_img;
-  cv::bitwise_and(src_color_img, src_color_img, masked_color_img, depth_mask);
-  cv::imshow("mask depth color", masked_color_img);
 
   cv::Mat red_mask;
   cv::Mat blue_mask;
@@ -181,6 +178,10 @@ bool VisionTargetDetector::process_image(
     s_range_min.as_int(), s_range_max.as_int(), v_range_min.as_int(), v_range_max.as_int());
 
   if (debug) {
+    cv::Mat depth_masked_color_img;
+    cv::bitwise_and(src_color_img, src_color_img, depth_masked_color_img, depth_mask);
+    cv::imshow("mask depth color", depth_masked_color_img);
+
     cv::Mat masked_red_img;
     cv::bitwise_and(src_color_img, src_color_img, masked_red_img, red_mask);
     cv::imshow("mask red", masked_red_img);
@@ -199,10 +200,10 @@ bool VisionTargetDetector::process_image(
 
   dst_img = src_color_img;
 
-  add_label(dst_img, red_mask, area_size_thres.as_int(), cv::Scalar(0, 0, 255));
-  add_label(dst_img, blue_mask, area_size_thres.as_int(), cv::Scalar(255, 0, 0));
-  add_label(dst_img, yellow_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 255));
-  add_label(dst_img, green_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 0));
+  add_label(dst_img, red_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(0, 0, 255));
+  add_label(dst_img, blue_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(255, 0, 0));
+  add_label(dst_img, yellow_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 255));
+  add_label(dst_img, green_mask & depth_mask, area_size_thres.as_int(), cv::Scalar(0, 255, 0));
 
   return true;
 }
