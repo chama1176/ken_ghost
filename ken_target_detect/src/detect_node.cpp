@@ -59,6 +59,10 @@ private:
   void calc_3d_point(const cv::Point & point, const cv::Mat & src_depth, cv::Point3d & point_3d);
 
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr red_target_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr blue_target_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr yellow_target_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr green_target_publisher_;
+
   message_filters::Subscriber<sensor_msgs::msg::Image> color_sub_;
   message_filters::Subscriber<sensor_msgs::msg::Image> depth_sub_;
 
@@ -78,6 +82,11 @@ private:
 VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
 {
   red_target_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("red_target", 1);
+  blue_target_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("blue_target", 1);
+  yellow_target_publisher_ =
+    this->create_publisher<geometry_msgs::msg::PoseArray>("yellow_target", 1);
+  green_target_publisher_ =
+    this->create_publisher<geometry_msgs::msg::PoseArray>("green_target", 1);
 
   color_sub_.subscribe(this, "/camera/color/image_raw");
   depth_sub_.subscribe(this, "/camera/aligned_depth_to_color/image_raw");
@@ -156,11 +165,14 @@ void VisionTargetDetector::topic_callback(
 
   process_image(
     color_cv_ptr->image, depth_cv_ptr->image, out_img, red_target, blue_target, yellow_target,
-    green_target, true);
+    green_target, false);
   cv::imshow(OPENCV_WINDOW, out_img);
   cv::waitKey(3);
 
   red_target_publisher_->publish(red_target);
+  blue_target_publisher_->publish(blue_target);
+  yellow_target_publisher_->publish(yellow_target);
+  green_target_publisher_->publish(green_target);
 }
 
 bool VisionTargetDetector::process_image(
