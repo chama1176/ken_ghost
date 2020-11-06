@@ -56,9 +56,7 @@ private:
     const int area_size_thres, const cv::Scalar label_color,
     geometry_msgs::msg::PoseArray & target_pose);
 
-  void calc_3d_point(
-    const cv::Point & point, const double & fx, const double & fy, const cv::Mat & src_depth,
-    cv::Point3d & point_3d);
+  void calc_3d_point(const cv::Point & point, const cv::Mat & src_depth, cv::Point3d & point_3d);
 
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr red_target_publisher_;
   message_filters::Subscriber<sensor_msgs::msg::Image> color_sub_;
@@ -106,10 +104,18 @@ VisionTargetDetector::VisionTargetDetector() : Node("vision_target_detector")
   this->declare_parameter("cx", 0.0);
   this->declare_parameter("cy", 0.0);
 
-  this->get_parameter("fx", fx_);
-  this->get_parameter("fy", fy_);
-  this->get_parameter("cx", cx_);
-  this->get_parameter("cy", cy_);
+  rclcpp::Parameter fx_param;
+  rclcpp::Parameter fy_param;
+  rclcpp::Parameter cx_param;
+  rclcpp::Parameter cy_param;
+  this->get_parameter("fx", fx_param);
+  this->get_parameter("fy", fy_param);
+  this->get_parameter("cx", cx_param);
+  this->get_parameter("cy", cy_param);
+  fx_ = fx_param.as_double();
+  fy_ = fy_param.as_double();
+  cx_ = cx_param.as_double();
+  cy_ = cy_param.as_double();
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -302,7 +308,7 @@ void VisionTargetDetector::add_label(
       int height = stats.ptr<int>(i)[cv::ConnectedComponentsTypes::CC_STAT_HEIGHT];
       cv::rectangle(src_color_img, cv::Rect(left, top, width, height), label_color, 2);
       cv::Point3d target_point_tmp;
-      calc_3d_point(cv::Point(x, y), fx_, fy_, src_depth_img, target_point_tmp);
+      calc_3d_point(cv::Point(x, y), src_depth_img, target_point_tmp);
       geometry_msgs::msg::Pose target_pose_tmp;
       target_pose_tmp.position.x = target_point_tmp.x;
       target_pose_tmp.position.y = target_point_tmp.y;
@@ -314,11 +320,12 @@ void VisionTargetDetector::add_label(
 }
 
 void VisionTargetDetector::calc_3d_point(
-  const cv::Point & point, const double & fx, const double & fy, const cv::Mat & src_depth,
-  cv::Point3d & point_3d)
+  const cv::Point & point, const cv::Mat & src_depth, cv::Point3d & point_3d)
 {
-  double x_over_z = (double)(point.x - cx_) / fx;
-  double y_over_z = (double)(point.y - cy_) / fy;
+  double x_over_z = ((double)point.x - cx_) / fx_;
+  double y_over_z = ((double)point.y - cy_) / fy_;
+
+  std::cout << " cy: " << cy_ << " cx: " << cx_ << std::endl;
 
   double d = (double)src_depth.at<ushort>(point.y, point.x) / 1000.0;
   //  point_3d.z = d / std::sqrt(1 + x_over_z * x_over_z + y_over_z * y_over_z);

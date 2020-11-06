@@ -14,9 +14,10 @@ vision_target_detector:
     v_range_min: 50
     area_size_thres: 900
     depth_detection_area_thres: 600
-    fx: 388.3402404785156 # camera k 0
-    fy: 388.3402404785156 # camera k 4
-    cx: 320.0 #321.3908386230469 # camera k 2
-    cy: 240.0 #244.4134979248047 # camera k 5
+    fx: 612.6250610351562 # camera k 0
+    fy: 613.1917724609375 # camera k 4
+    cx: 319.5198059082031 # camera k 2
+    cy: 245.94915771484375 # camera k 5
+
 
 
