@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ken_driver)
+project(ken_description)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -17,14 +17,15 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(controller_interface REQUIRED)
-find_package(controller_manager REQUIRED)
-find_package(dynamixel_sdk REQUIRED)
-find_package(hardware_interface REQUIRED)
-find_package(rclcpp REQUIRED)
+# uncomment the following section in order to fill in
+# further dependencies manually.
+# find_package(<dependency> REQUIRED)
 
-install(DIRECTORY launch config
-  DESTINATION share/${PROJECT_NAME}
+install(DIRECTORY
+  meshes
+  urdf
+  launch
+  DESTINATION share/${PROJECT_NAME}/
 )
 
 if(BUILD_TESTING)

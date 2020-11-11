@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>ken_driver</name>
+  <name>ken_description</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="kaede6120@gmail.com">kaede</maintainer>
@@ -9,13 +9,9 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>controller_interface</depend>
-  <depend>controller_manager</depend>
-  <depend>ken_description</depend>
-  <depend>dynamixel_sdk</depend>
-  <depend>hardware_interface</depend>
-  <depend>rclcpp</depend>
-  <depend>xacro</depend>
+  <depend>joint_state_publisher_gui</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>rviz2</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
