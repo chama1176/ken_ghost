@@ -10,45 +10,34 @@
 
   <link name="base_link"/>
 
-  <link name="${NAME_LINK_BASE}">
+  <link name="arm_base_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://${MESH_LINK_BASE}"
-            scale="1 1 1"/>
+        <mesh filename="package://ken_description/meshes/arm_base.stl" scale="1 1 1"/>
       </geometry>
-      <material name="black"/>
+      <material name="grey"/>
     </visual>
-
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://${MESH_COLLISION_LINK_BASE}"
-            scale="1 1 1"/>
+        <mesh filename="package://ken_description/meshes/arm_base.stl" scale="1 1 1"/>
       </geometry>
-      <material name="black"/>
     </collision>
-
     <inertial>
-      <mass value="0.06645"/>
-      <origin xyz="-1.31E-02 7.00E-06 2.12E-02" rpy="0 ${M_PI/8} 0"/>
-      <inertia ixx="1.66E-05" ixy="1.80E-09" ixz="-5.75E-07" iyy="2.36E-05" iyz="-3.23E-08" izz="1.77E-05"/>
+      <mass value="0.3"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia ixx="0.1" ixy="0.1" ixz="0.1" iyy="0.1" iyz="0.1" izz="0.1"/>
     </inertial>
   </link>
 
-  <joint name="${NAME_JOINT_1}" type="revolute">
+
+
+
+  <joint name="base_to_arm_base" type="fixed">
     <origin xyz="0 0 0.0454" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit
-      effort="10.0"
-      velocity="${joints_vlimit}"
-      lower="${joint1_lower_limit}"
-      upper="${joint1_upper_limit}"
-      />
-    <parent link="${NAME_LINK_BASE}"/>
-    <child link="${NAME_LINK_1}"/>
-    <dynamics damping="1.0e-6" friction="2.0e-1"/>
+    <parent link="base_link"/>
+    <child link="arm_base_link"/>
   </joint>
 
-  </xacro:macro>
 </robot>
