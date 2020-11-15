@@ -5,8 +5,16 @@
     <color rgba="0.2 0.2 0.2 1.0"/>
   </material>
   <material name="grey">
-    <color rgba="0.3 0.3 0.3 1.0"/>
+    <color rgba="0.4 0.4 0.4 1.0"/>
   </material>
+  <material name="white">
+    <color rgba="0.9 0.9 0.9 1.0"/>
+  </material>
+
+  <xacro:property name="joint_effort_limit" value="10.0"/>
+  <xacro:property name="joint_velocity_limit" value="1.0"/>
+  <xacro:property name="TO_RADIAN" value="${pi / 180.0}"/>
+
 
   <link name="base_link"/>
 
@@ -14,6 +22,14 @@
     <origin xyz="0 0 0.0" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="arm_base_link"/>
+  </joint>
+
+  <joint name="arm_base_to_arm_link1" type="revolute">
+    <origin xyz="0 0 0.042" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <parent link="arm_base_link"/>
+    <child link="arm_link1"/>
+    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-90*TO_RADIAN}" upper="${90*TO_RADIAN}" />
   </joint>
 
   <link name="arm_base_link">
@@ -37,5 +53,25 @@
     </inertial>
   </link>
 
+  <link name="arm_link1">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ken_description/meshes/link1.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ken_description/meshes/link1.stl" scale="1 1 1"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.3"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia ixx="0.1" ixy="0.1" ixz="0.1" iyy="0.1" iyz="0.1" izz="0.1"/>
+    </inertial>
+  </link>
 
 </robot>

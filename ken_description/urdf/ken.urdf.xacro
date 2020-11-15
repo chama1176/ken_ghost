@@ -11,7 +11,5 @@
     <child link="base_link"/>                         
   </joint>                                            
 
-  <xacro:property name="M_PI" value="3.14159"/>
-  <xacro:property name="TO_RADIAN" value="${M_PI / 180.0}"/>
 
 </robot>
