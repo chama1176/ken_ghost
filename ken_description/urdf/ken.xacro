@@ -29,7 +29,7 @@
     <axis xyz="0 0 1"/>
     <parent link="arm_base_link"/>
     <child link="arm_link1"/>
-    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-90*TO_RADIAN}" upper="${90*TO_RADIAN}" />
+    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-180*TO_RADIAN}" upper="${180*TO_RADIAN}" />
   </joint>
 
   <joint name="arm_link1_to_arm_link2" type="revolute">
@@ -37,7 +37,7 @@
     <axis xyz="0 1 0"/>
     <parent link="arm_link1"/>
     <child link="arm_link2"/>
-    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-90*TO_RADIAN}" upper="${90*TO_RADIAN}" />
+    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-180*TO_RADIAN}" upper="${10*TO_RADIAN}" />
   </joint>
 
   <joint name="arm_link2_to_arm_link3" type="revolute">
@@ -45,7 +45,7 @@
     <axis xyz="0 1 0"/>
     <parent link="arm_link2"/>
     <child link="arm_link3"/>
-    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-90*TO_RADIAN}" upper="${90*TO_RADIAN}" />
+    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-150*TO_RADIAN}" upper="${150*TO_RADIAN}" />
   </joint>
 
   <joint name="arm_link3_to_arm_link4" type="revolute">
@@ -61,7 +61,7 @@
     <axis xyz="1 0 0"/>
     <parent link="arm_link4"/>
     <child link="shinai_link"/>
-    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-90*TO_RADIAN}" upper="${90*TO_RADIAN}" />
+    <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-180*TO_RADIAN}" upper="${180*TO_RADIAN}" />
   </joint>
 
   <link name="arm_base_link">
