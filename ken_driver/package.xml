@@ -14,6 +14,7 @@
   <depend>ken_description</depend>
   <depend>dynamixel_sdk</depend>
   <depend>hardware_interface</depend>
+  <depend>ros_controllers</depend>
   <depend>rclcpp</depend>
   <depend>xacro</depend>
 

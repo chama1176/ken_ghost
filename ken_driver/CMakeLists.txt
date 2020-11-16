@@ -23,6 +23,26 @@ find_package(dynamixel_sdk REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(rclcpp REQUIRED)
 
+include_directories(include)
+
+add_executable(ken_controller
+  src/ken_control_node.cpp src/ken_interface.cpp src/ken_driver.cpp)
+
+ament_target_dependencies(ken_controller
+    controller_interface
+    controller_manager
+    dynamixel_sdk
+    hardware_interface
+    rclcpp
+)
+
+install(TARGETS ken_controller
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION include)
+
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
