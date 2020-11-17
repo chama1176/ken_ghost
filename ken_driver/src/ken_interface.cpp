@@ -56,11 +56,12 @@ hardware_interface::hardware_interface_ret_t KenInterface::init(
       return hardware_interface::HW_RET_ERROR;
     }
 
-    // joint_mode_handles_[i] = hardware_interface::OperationModeHandle(joint_name, &op_mode_[i]);
-    // if (register_operation_mode_handle(&joint_mode_handles_[i]) != hardware_interface::HW_RET_OK) {
-    //   RCLCPP_ERROR(LOGGER, "Unable to register %s.", joint_mode_handles_[i].get_name());
-    //   return hardware_interface::HW_RET_ERROR;
-    // }
+    joint_mode_handles_[i] = hardware_interface::OperationModeHandle(
+      joint_name, reinterpret_cast<hardware_interface::OperationMode *>(&op_mode_[i]));
+    if (register_operation_mode_handle(&joint_mode_handles_[i]) != hardware_interface::HW_RET_OK) {
+      RCLCPP_ERROR(LOGGER, "Unable to register %s.", joint_mode_handles_[i].get_name());
+      return hardware_interface::HW_RET_ERROR;
+    }
     ++i;
   }
   /*

@@ -1,4 +1,4 @@
-crane_plus_arm_controller:
+ken_joint_trajectory_controller:
   ros__parameters:
     joints:
       - arm_base_to_arm_link1

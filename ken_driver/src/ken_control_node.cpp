@@ -44,9 +44,9 @@ int main(int argc, char * argv[])
   cm.load_controller(
     "ros_controllers", "ros_controllers::JointStateController", "ken_joint_state_controller");
   // load the trajectory controller
-  // cm.load_controller(
-  //   "ros_controllers", "ros_controllers::JointTrajectoryController",
-  //   "ken_joint_trajectory_controller");
+  cm.load_controller(
+    "ros_controllers", "ros_controllers::JointTrajectoryController",
+    "ken_joint_trajectory_controller");
 
   // there is no async spinner in ROS 2, so we have to put the spin() in its own thread
   auto future_handle = std::async(std::launch::async, spin, executor);
