@@ -10,6 +10,7 @@ set(AMENT_DEPENDS
   std_msgs
   std_srvs
   sensor_msgs
+  trajectory_msgs
   cv_bridge
 
   opencv2
@@ -41,6 +42,7 @@ find_package(rclcpp REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 
 add_executable(message_sub src/message_sub_node.cpp)
@@ -48,6 +50,13 @@ ament_target_dependencies(message_sub rclcpp message_filters std_msgs sensor_msg
 
 install(TARGETS
   message_sub
+  DESTINATION lib/${PROJECT_NAME})
+
+add_executable(pub_jtm_test src/pub_test_joint_trajectory_msg_node.cpp)
+ament_target_dependencies(pub_jtm_test rclcpp std_msgs sensor_msgs trajectory_msgs) 
+
+install(TARGETS
+  pub_jtm_test
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

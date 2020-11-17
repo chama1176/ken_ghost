@@ -87,5 +87,8 @@ hardware_interface::hardware_interface_ret_t KenInterface::read()
 
 hardware_interface::hardware_interface_ret_t KenInterface::write()
 {
+  std::cout << cmd_[0] << " " << cmd_[1] << " " << cmd_[2] << " " << cmd_[3] << " " << cmd_[4]
+            << " " << std::endl;
+
   return hardware_interface::HW_RET_OK;
 }
