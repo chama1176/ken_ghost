@@ -11,7 +11,7 @@ KenInterface::KenInterface() {}
 KenInterface::~KenInterface()
 {
   // driver_->torque_enable(false);
-  // driver_->close_port();
+  driver_->close_port();
 }
 
 hardware_interface::hardware_interface_ret_t KenInterface::init()
@@ -23,6 +23,13 @@ hardware_interface::hardware_interface_ret_t KenInterface::init(
   const std::string & port_name, const int baudrate, const std::vector<uint8_t> & dxl_id_list,
   const std::vector<std::string> & joint_name_list)
 {
+  driver_ = std::make_shared<KenDriver>(port_name, baudrate, dxl_id_list);
+
+  if (!driver_->open_port()) {
+    RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
+    return hardware_interface::HW_RET_ERROR;
+  }
+
   for (auto joint_name : joint_name_list) {
     joint_names_.push_back(joint_name);
     std::cout << joint_name << std::endl;
@@ -64,6 +71,12 @@ hardware_interface::hardware_interface_ret_t KenInterface::init(
     }
     ++i;
   }
+
+  if (!driver_->add_sync_read_param()) {
+    RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
+    return hardware_interface::HW_RET_ERROR;
+  }
+
   /*
   read();  // set current joint positions to pos_.
   for (size_t i = 0; i < cmd_.size(); i++) {
@@ -76,11 +89,22 @@ hardware_interface::hardware_interface_ret_t KenInterface::init(
 
 hardware_interface::hardware_interface_ret_t KenInterface::read()
 {
-  pos_[0] = 1.1;
-  pos_[1] = 2.1;
-  pos_[2] = 3.1;
-  pos_[3] = 4.1;
-  pos_[4] = 5.1;
+  std::vector<double> joint_positions;
+  if (!driver_->sync_read_present_positions(&joint_positions)) {
+    RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
+    return hardware_interface::HW_RET_ERROR;
+
+  } else if (pos_.size() != joint_positions.size()) {
+    RCLCPP_ERROR(
+      LOGGER, "vectors size does not match. pos_:%d, joint_positions:%d", pos_.size(),
+      joint_positions.size());
+    return hardware_interface::HW_RET_ERROR;
+
+  } else {
+    for (size_t i = 0; i < pos_.size(); ++i) {
+      pos_[i] = joint_positions[i];
+    }
+  }
 
   return hardware_interface::HW_RET_OK;
 }

@@ -38,7 +38,7 @@ private:
   std::vector<double> cmd_;
   std::vector<hardware_interface::OperationMode> op_mode_;
 
-  std::shared_ptr<KenInterface> driver_;
+  std::shared_ptr<KenDriver> driver_;
 };
 
 #endif  // KEN_INTERFACE_HPP_

@@ -23,11 +23,11 @@ int main(int argc, char * argv[])
   std::vector<std::string> joint_name_list = {"arm_base_to_arm_link1", "arm_link1_to_arm_link2",
                                               "arm_link2_to_arm_link3", "arm_link3_to_arm_link4",
                                               "arm_link4_to_shinai_link"};
-  std::vector<uint8_t> joint_id_list = {0x01, 0x02, 0x03, 0x04, 0x05};
+  std::vector<uint8_t> joint_id_list = {21, 22, 23, 24, 25};
 
   // initialize the robot
   if (
-    my_robot->init("/dev/ttyUSB0", 1000000, joint_id_list, joint_name_list) !=
+    my_robot->init("/dev/ttyUSB0", 57600, joint_id_list, joint_name_list) !=
     hardware_interface::HW_RET_OK) {
     fprintf(stderr, "failed to initialized ken hardware\n");
     return -1;
