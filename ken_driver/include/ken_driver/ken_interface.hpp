@@ -1,5 +1,6 @@
 #ifndef KEN_INTERFACE_HPP_
 #define KEN_INTERFACE_HPP_
+
 #include <memory>
 #include <string>
 #include <vector>
