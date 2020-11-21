@@ -23,10 +23,15 @@ def generate_launch_description():
         'config',
         'ken_controllers.yaml')
 
+    rsp_node = Node(package='robot_state_publisher',
+                    node_executable='robot_state_publisher',
+                    output='both',
+                    arguments=[urdf_path])
+
     ken_driver_node = Node(package='ken_driver',
                            node_executable='ken_controller',
                            output='both',
                            #        parameters=[{'controller_name': 'ken_joint_trajectory_controller'}])
                            parameters=[config])
 
-    return LaunchDescription([ken_driver_node])
+    return LaunchDescription([rsp_node, ken_driver_node])
