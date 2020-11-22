@@ -1,0 +1,7 @@
+ken_teleop_joy:
+  ros__parameters:
+    axis: [1, 2, 3, 4, -1]
+    scale: [0.5, 0.5, 0.5, 0.5, 0.5]
+
+    joint_num: 5
+    enable_button: 8  # L2 shoulder button

@@ -17,13 +17,28 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
 find_package(joy REQUIRED)
 find_package(sensor_msgs REQUIRED)
-
+find_package(trajectory_msgs REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+add_executable(ken_teleop_joy
+  src/ken_teleop_node.cpp)
+
+ament_target_dependencies(ken_teleop_joy
+    joy
+    sensor_msgs
+    trajectory_msgs
+    rclcpp
+)
+
+install(TARGETS ken_teleop_joy
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
