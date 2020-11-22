@@ -114,7 +114,10 @@ bool KenDriver::sync_write_goal_positions(const std::vector<double> & goal_posit
   // Add Dynamixel goal position value to the Syncwrite storage
   for (size_t i = 0; i < goal_positions.size(); i++) {
     uint16_t goal_position = rad2dxl_pos(goal_positions[i]);
-    std::cout << i << ": " << goal_position << std::endl;
+    goal_position = std::max(goal_position, (uint16_t)0);
+    goal_position = std::min(goal_position, (uint16_t)(DXL_RESOLUTION - 1));
+
+    std::cout << i << " goal pos: " << goal_position << std::endl;
     auto dxl_id = id_list_[i];
 
     uint8_t param_goal_position[4];
