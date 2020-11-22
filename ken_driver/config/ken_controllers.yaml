@@ -1,0 +1,27 @@
+ken_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - arm_base_to_arm_link1
+      - arm_link1_to_arm_link2
+      - arm_link2_to_arm_link3
+      - arm_link3_to_arm_link4
+      - arm_link4_to_shinai_link
+    write_op_modes:
+      - arm_base_to_arm_link1
+      - arm_link1_to_arm_link2
+      - arm_link2_to_arm_link3
+      - arm_link3_to_arm_link4
+      - arm_link4_to_shinai_link
+
+control_param_node:
+  ros__parameters:
+    port_name: /dev/ttyUSB0
+    baudrate: 1000000
+    joint_name_list:
+      - arm_base_to_arm_link1
+      - arm_link1_to_arm_link2
+      - arm_link2_to_arm_link3
+      - arm_link3_to_arm_link4
+      - arm_link4_to_shinai_link
+    dxl_id_list: [0x01, 0x02, 0x03, 0x04, 0x05]
+    timeout_seconds: 5.0
