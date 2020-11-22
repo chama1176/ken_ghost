@@ -16,8 +16,9 @@ public:
   void close_port(void);
   bool torque_enable(const bool enable);
   bool add_sync_read_param(void);
-  bool write_goal_positions(const std::vector<double> & goal_positions);
   bool sync_read_present_positions(std::vector<double> * joint_positions);
+  bool sync_write_goal_positions(const std::vector<double> & goal_positions);
+
   // TODO: Get voltage func
   // TODO: Get temperature func
 
@@ -33,11 +34,13 @@ private:
   static constexpr uint16_t ADDR_GOAL_POSITION = 116;
   static constexpr uint16_t ADDR_PRESENT_POSITION = 132;
 
+  static constexpr uint16_t LEN_GOAL_POSITION = 4;
   static constexpr uint16_t LEN_PRESENT_POSITION = 4;
 
   std::shared_ptr<dynamixel::PortHandler> dxl_port_handler_;
   std::shared_ptr<dynamixel::PacketHandler> dxl_packet_handler_;
   std::shared_ptr<dynamixel::GroupSyncRead> dxl_group_sync_read_;
+  std::shared_ptr<dynamixel::GroupSyncWrite> dxl_group_sync_write_;
 
   int baudrate_;
   std::vector<uint8_t> id_list_;

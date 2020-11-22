@@ -82,12 +82,11 @@ hardware_interface::hardware_interface_ret_t KenInterface::init(
     return hardware_interface::HW_RET_ERROR;
   }
 
-  /*
-  read();  // set current joint positions to pos_.
+  // set current joint positions to pos_
+  read();
   for (size_t i = 0; i < cmd_.size(); i++) {
     cmd_[i] = pos_[i];  // set current joint positions to target positions cmd_.
   }
-  */
 
   return hardware_interface::HW_RET_OK;
 }
@@ -116,8 +115,10 @@ hardware_interface::hardware_interface_ret_t KenInterface::read()
 
 hardware_interface::hardware_interface_ret_t KenInterface::write()
 {
-  std::cout << cmd_[0] << " " << cmd_[1] << " " << cmd_[2] << " " << cmd_[3] << " " << cmd_[4]
-            << " " << std::endl;
+  if (!driver_->sync_write_goal_positions(cmd_)) {
+    RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
+    return hardware_interface::HW_RET_ERROR;
+  }
 
   return hardware_interface::HW_RET_OK;
 }

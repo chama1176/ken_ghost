@@ -18,6 +18,9 @@ KenDriver::KenDriver(const std::string port_name, const int baudrate, std::vecto
   dxl_group_sync_read_ = std::shared_ptr<dynamixel::GroupSyncRead>(new dynamixel::GroupSyncRead(
     dxl_port_handler_.get(), dxl_packet_handler_.get(), ADDR_PRESENT_POSITION,
     LEN_PRESENT_POSITION));
+
+  dxl_group_sync_write_ = std::shared_ptr<dynamixel::GroupSyncWrite>(new dynamixel::GroupSyncWrite(
+    dxl_port_handler_.get(), dxl_packet_handler_.get(), ADDR_GOAL_POSITION, LEN_GOAL_POSITION));
 }
 
 KenDriver::~KenDriver() { close_port(); }
@@ -71,8 +74,6 @@ bool KenDriver::add_sync_read_param(void)
   return retval;
 }
 
-bool KenDriver::write_goal_positions(const std::vector<double> & goal_positions) {}
-
 bool KenDriver::sync_read_present_positions(std::vector<double> * joint_positions)
 {
   bool retval = true;
@@ -95,6 +96,49 @@ bool KenDriver::sync_read_present_positions(std::vector<double> * joint_position
     joint_positions->at(i) = dxl_pos2rad((uint16_t)dxl_group_sync_read_->getData(
       id_list_[i], ADDR_PRESENT_POSITION, LEN_PRESENT_POSITION));
   }
+
+  return retval;
+}
+
+bool KenDriver::sync_write_goal_positions(const std::vector<double> & goal_positions)
+{
+  if (goal_positions.size() != id_list_.size()) {
+    last_error_log_ = std::string(__func__) + ": vectors size does not match: " +
+                      " goal_positions:" + std::to_string(goal_positions.size()) +
+                      ", id_list:" + std::to_string(id_list_.size());
+    return false;
+  }
+
+  bool retval = true;
+
+  // Add Dynamixel goal position value to the Syncwrite storage
+  for (size_t i = 0; i < goal_positions.size(); i++) {
+    uint16_t goal_position = rad2dxl_pos(goal_positions[i]);
+    std::cout << i << ": " << goal_position << std::endl;
+    auto dxl_id = id_list_[i];
+
+    uint8_t param_goal_position[4];
+    // Allocate goal position value into byte array
+    param_goal_position[0] = DXL_LOBYTE(DXL_LOWORD(goal_position));
+    param_goal_position[1] = DXL_HIBYTE(DXL_LOWORD(goal_position));
+    param_goal_position[2] = DXL_LOBYTE(DXL_HIWORD(goal_position));
+    param_goal_position[3] = DXL_HIBYTE(DXL_HIWORD(goal_position));
+
+    if (!dxl_group_sync_write_->addParam(dxl_id, param_goal_position)) {
+      last_error_log_ =
+        std::string(__func__) + ": unable to add sync write param " + std::to_string(dxl_id);
+      return false;
+    }
+  }
+
+  // Syncwrite goal position
+  int dxl_result = dxl_group_sync_write_->txPacket();
+  if (!parse_dxl_error(std::string(__func__), dxl_result)) {
+    retval = false;
+  }
+
+  // Clear syncwrite parameter storage
+  dxl_group_sync_write_->clearParam();
 
   return retval;
 }
