@@ -5,7 +5,7 @@
 #include "ken_driver/ken_interface.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-static constexpr double SPIN_RATE = 10;  // Hz
+static constexpr double SPIN_RATE = 100;  // Hz
 
 void spin(std::shared_ptr<rclcpp::executors::MultiThreadedExecutor> exe) { exe->spin(); }
 
