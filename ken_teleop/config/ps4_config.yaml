@@ -12,4 +12,4 @@ ken_teleop_joy:
     joint_num: 5
     enable_button: 4  # L2 shoulder button
 
-    move_time: 0.1
+    move_time: 1.0
