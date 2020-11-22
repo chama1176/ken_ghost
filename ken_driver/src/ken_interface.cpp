@@ -10,7 +10,7 @@ KenInterface::KenInterface() {}
 
 KenInterface::~KenInterface()
 {
-  // driver_->torque_enable(false);
+  driver_->torque_enable(false);
   driver_->close_port();
 }
 
@@ -73,6 +73,11 @@ hardware_interface::hardware_interface_ret_t KenInterface::init(
   }
 
   if (!driver_->add_sync_read_param()) {
+    RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
+    return hardware_interface::HW_RET_ERROR;
+  }
+
+  if (!driver_->torque_enable(true)) {
     RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
     return hardware_interface::HW_RET_ERROR;
   }
