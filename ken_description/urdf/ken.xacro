@@ -17,6 +17,7 @@
 
 
   <link name="base_link"/>
+  <link name="tip_link"/>
 
   <joint name="base_to_arm_base" type="fixed">
     <origin xyz="0 0 0.065" rpy="0 0 0"/>
@@ -64,6 +65,12 @@
     <limit effort="${joint_effort_limit}" velocity="${joint_velocity_limit}" lower="${-180*TO_RADIAN}" upper="${180*TO_RADIAN}" />
   </joint>
 
+  <joint name="shinai_link_to_tip" type="fixed">
+    <origin xyz="0.31 0 0" rpy="0 0 0"/>
+    <parent link="shinai_link"/>
+    <child link="tip_link"/>
+  </joint>
+  
   <link name="arm_base_link">
     <visual>
       <origin xyz="0 0 -0.065" rpy="0 0 0"/>
@@ -189,5 +196,6 @@
       <inertia ixx="0.1" ixy="0.1" ixz="0.1" iyy="0.1" iyz="0.1" izz="0.1"/>
     </inertial>
   </link>
+
 
 </robot>
