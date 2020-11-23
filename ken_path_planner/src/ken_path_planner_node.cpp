@@ -32,6 +32,10 @@ public:
 
 private:
   void makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  void pushInterpolateTrajectoryPoints(
+    trajectory_msgs::msg::JointTrajectory & jtm,
+    const trajectory_msgs::msg::JointTrajectoryPoint start,
+    const trajectory_msgs::msg::JointTrajectoryPoint end, int interpolate_num);
 
   void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg);
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
@@ -97,27 +101,48 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
 
 KenPathPlanner::~KenPathPlanner() {}
 
+void KenPathPlanner::pushInterpolateTrajectoryPoints(
+  trajectory_msgs::msg::JointTrajectory & jtm,
+  const trajectory_msgs::msg::JointTrajectoryPoint start,
+  const trajectory_msgs::msg::JointTrajectoryPoint end, int interpolate_num)
+{
+  rclcpp::Duration duration_btwn_point = end.time_from_start;
+  duration_btwn_point = duration_btwn_point - start.time_from_start;
+
+  for (int i = 0; i < interpolate_num; ++i) {
+    trajectory_msgs::msg::JointTrajectoryPoint point;
+    point.time_from_start =
+      rclcpp::Duration(duration_btwn_point.nanoseconds() / interpolate_num * i) +
+      start.time_from_start;
+    for (size_t idx = 0; idx < start.positions.size(); ++idx) {
+      point.positions.push_back(
+        (end.positions[idx] - start.positions[idx]) / interpolate_num * i + start.positions[idx]);
+    }
+    jtm.points.push_back(point);
+  }
+  jtm.points.push_back(end);
+}
+
 void KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
 {
   jtm.header.stamp = rclcpp::Time(0);
-
   jtm.joint_names = name_vec_;
 
   trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start.sec = 1;
+  start_point.time_from_start.sec = 0;
   start_point.time_from_start.nanosec = 0;
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     start_point.positions.push_back(current_pos_[i]);
   }
-  jtm.points.push_back(start_point);
-
-  trajectory_msgs::msg::JointTrajectoryPoint point;
-  point.time_from_start.sec = (uint32_t)move_time_;
-  point.time_from_start.nanosec = (uint32_t)((move_time_ - point.time_from_start.sec) * 1e9);
+  trajectory_msgs::msg::JointTrajectoryPoint end_point;
+  end_point.time_from_start.sec = (uint32_t)move_time_;
+  end_point.time_from_start.nanosec =
+    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
-    point.positions.push_back(0.0);
+    end_point.positions.push_back(0.0);
   }
-  jtm.points.push_back(point);
+
+  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
 }
 
 void KenPathPlanner::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
