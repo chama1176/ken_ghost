@@ -32,6 +32,8 @@ public:
 
 private:
   void makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  void makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+
   void pushInterpolateTrajectoryPoints(
     trajectory_msgs::msg::JointTrajectory & jtm,
     const trajectory_msgs::msg::JointTrajectoryPoint start,
@@ -46,12 +48,14 @@ private:
 
   int64_t enable_button_;
   int64_t move_home_button_;
+  int64_t move_kamae_button_;
 
   int64_t joint_num_;
   double move_time_;
 
   std::vector<std::string> name_vec_;
   std::vector<double> current_pos_;
+  std::vector<double> kamae_pos_;
 
   bool received_joint_state_msg_;
   bool sent_disable_msg_;
@@ -64,6 +68,8 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
 
   this->declare_parameter("move_home_button", -1);
   this->get_parameter("move_home_button", move_home_button_);
+  this->declare_parameter("move_kamae_button", -1);
+  this->get_parameter("move_kamae_button", move_kamae_button_);
 
   this->declare_parameter("joint_num", -1);
   this->get_parameter("joint_num", joint_num_);
@@ -74,6 +80,10 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
   if (joint_num_ > 0) {
     this->declare_parameter("name", std::vector<std::string>(joint_num_, ""));
     this->get_parameter("name", name_vec_);
+
+    this->declare_parameter("kamae_pos", std::vector<double>(joint_num_, 0.0));
+    this->get_parameter("kamae_pos", kamae_pos_);
+
     current_pos_.resize(joint_num_);
 
     for (size_t i = 0; i < (size_t)joint_num_; ++i) {
@@ -83,6 +93,8 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
 
   RCLCPP_INFO(this->get_logger(), "Teleop enable button: %d", enable_button_);
   RCLCPP_INFO(this->get_logger(), "Move home button: %d", move_home_button_);
+  RCLCPP_INFO(this->get_logger(), "Move kamae button: %d", move_kamae_button_);
+
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
   RCLCPP_INFO(this->get_logger(), "Joint num: %d", joint_num_);
 
@@ -145,6 +157,28 @@ void KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajector
   pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
 }
 
+void KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
+{
+  jtm.header.stamp = rclcpp::Time(0);
+  jtm.joint_names = name_vec_;
+
+  trajectory_msgs::msg::JointTrajectoryPoint start_point;
+  start_point.time_from_start.sec = 0;
+  start_point.time_from_start.nanosec = 0;
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    start_point.positions.push_back(current_pos_[i]);
+  }
+  trajectory_msgs::msg::JointTrajectoryPoint end_point;
+  end_point.time_from_start.sec = (uint32_t)move_time_;
+  end_point.time_from_start.nanosec =
+    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    end_point.positions.push_back(kamae_pos_[i]);
+  }
+
+  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
+}
+
 void KenPathPlanner::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
 {
   if (
@@ -157,6 +191,14 @@ void KenPathPlanner::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
       makeMoveHomeTrajectory(message);
       cmd_pub_->publish(message);
     }
+    if (
+      move_kamae_button_ >= 0 && static_cast<int>(msg->buttons.size()) > move_kamae_button_ &&
+      msg->buttons[move_kamae_button_]) {
+      auto message = trajectory_msgs::msg::JointTrajectory();
+      makeMoveKamaeTrajectory(message);
+      cmd_pub_->publish(message);
+    }
+
     sent_disable_msg_ = false;
   } else {
     if (!sent_disable_msg_) {

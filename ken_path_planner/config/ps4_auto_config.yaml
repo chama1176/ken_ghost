@@ -7,8 +7,11 @@ ken_path_panner:
       - arm_link3_to_arm_link4
       - arm_link4_to_shinai_link
 
+    kamae_pos: [0.5292233718205462, -2.60776733940559, 2.397611971465257, 1.5984079809768381, -0.8467573949128739]
+
     joint_num: 5
     enable_button: 4  # L1 shoulder button
     move_home_button: 3  # square button
+    move_kamae_button: 2  # triangle button
 
     move_time: 0.5
