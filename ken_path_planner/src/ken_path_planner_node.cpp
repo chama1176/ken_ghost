@@ -16,6 +16,8 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 
+#include "ken_path_planner/ken_fk.hpp"
+
 using std::placeholders::_1;
 
 class KenPathPlanner : public rclcpp::Node
@@ -61,7 +63,7 @@ private:
   bool sent_disable_msg_;
 };
 
-KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
+KenPathPlanner::KenPathPlanner() : Node("ken_path_planner")
 {
   this->declare_parameter("enable_button", -1);
   this->get_parameter("enable_button", enable_button_);
@@ -107,6 +109,8 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
     "joy", 1, std::bind(&KenPathPlanner::joy_callback, this, _1));
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
     "joint_states", 1, std::bind(&KenPathPlanner::joint_state_callback, this, _1));
+
+  KenFK fk;
 
   std::cout << "Finish Initialization" << std::endl;
 }

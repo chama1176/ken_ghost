@@ -25,16 +25,24 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
-add_executable(ken_path_planner
-  src/ken_path_planner_node.cpp)
+find_package(Eigen3 REQUIRED)
 
-ament_target_dependencies(ken_path_planner rclcpp std_msgs sensor_msgs trajectory_msgs) 
+include_directories(include ${EIGEN3_INCLUDE_DIR})
+
+add_executable(ken_path_planner
+  src/ken_path_planner_node.cpp src/ken_fk.cpp)
+
+ament_target_dependencies(ken_path_planner rclcpp std_msgs sensor_msgs geometry_msgs trajectory_msgs) 
 
 install(TARGETS
   ken_path_planner
   DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION include)
 
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}

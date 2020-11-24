@@ -1,4 +1,4 @@
-ken_path_panner:
+ken_path_planner:
   ros__parameters:
     name: 
       - arm_base_to_arm_link1
