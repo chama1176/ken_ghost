@@ -17,6 +17,8 @@ private:
   Eigen::Matrix4d dhT(const double a, const double alfa, const double d, const double theta);
   Eigen::Matrix4d rotX(const double rad);
   Eigen::Matrix4d transX(const double m);
+  Eigen::Matrix4d rotZ(const double rad);
+  Eigen::Matrix4d transZ(const double m);
 
   Eigen::Matrix4d T01_;
 };
