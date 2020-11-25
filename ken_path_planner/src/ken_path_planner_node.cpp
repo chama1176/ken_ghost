@@ -8,6 +8,9 @@
 #include <chrono>
 #include <functional>
 
+#include <eigen3/Eigen/Dense>
+
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/duration.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -15,6 +18,8 @@
 #include "sensor_msgs/msg/joy.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
+
+#include "ken_path_planner/ken_fk.hpp"
 
 using std::placeholders::_1;
 
@@ -43,6 +48,7 @@ private:
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
 
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr fk_debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
 
@@ -59,9 +65,11 @@ private:
 
   bool received_joint_state_msg_;
   bool sent_disable_msg_;
+
+  KenFK fk_;
 };
 
-KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
+KenPathPlanner::KenPathPlanner() : Node("ken_path_planner")
 {
   this->declare_parameter("enable_button", -1);
   this->get_parameter("enable_button", enable_button_);
@@ -103,6 +111,8 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_panner")
 
   cmd_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "ken_joint_trajectory_controller/joint_trajectory", 1);
+  fk_debug_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("debug/fk_pose", 1);
+
   joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
     "joy", 1, std::bind(&KenPathPlanner::joy_callback, this, _1));
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
@@ -218,6 +228,21 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
     }
     received_joint_state_msg_ = true;
   }
+  Eigen::Matrix4d Tbe = fk_.getTbe(current_pos_);
+
+  Eigen::Quaterniond Tbe_q(Tbe.block<3, 3>(0, 0));
+  geometry_msgs::msg::PoseStamped pose_pub;
+  pose_pub.header.frame_id = "base_link";
+  pose_pub.header.stamp = rclcpp::Time(0);
+  pose_pub.pose.position.x = Tbe(0, 3);
+  pose_pub.pose.position.y = Tbe(1, 3);
+  pose_pub.pose.position.z = Tbe(2, 3);
+  pose_pub.pose.orientation.x = Tbe_q.x();
+  pose_pub.pose.orientation.y = Tbe_q.y();
+  pose_pub.pose.orientation.z = Tbe_q.z();
+  pose_pub.pose.orientation.w = Tbe_q.w();
+
+  fk_debug_pub_->publish(pose_pub);
 }
 
 int main(int argc, char * argv[])
