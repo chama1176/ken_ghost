@@ -7,20 +7,24 @@
 
 #include <eigen3/Eigen/Dense>
 
+#include "ken_path_planner/eigen_dh.hpp"
+
 class KenFK
 {
 public:
   KenFK();
   ~KenFK();
+  Matrix4d getTbe(std::vector<double> joint_angle);
 
 private:
-  Eigen::Matrix4d dhT(const double a, const double alfa, const double d, const double theta);
-  Eigen::Matrix4d rotX(const double rad);
-  Eigen::Matrix4d transX(const double m);
-  Eigen::Matrix4d rotZ(const double rad);
-  Eigen::Matrix4d transZ(const double m);
-
-  Eigen::Matrix4d T01_;
+  // a, alfa, d, theta
+  inline Matrix4d Tb0() { return dhT(0.0, 0.0, 0.065, 0.0); }
+  inline Matrix4d T01(const double & rad) { return dhT(0.0, 0.0, 0.0, rad); }
+  inline Matrix4d T12(const double & rad) { return dhT(0.015, M_PI / 2, 0.02, rad); }
+  inline Matrix4d T23(const double & rad) { return dhT(0.1, 0.0, 0.0, rad); }
+  inline Matrix4d T34(const double & rad) { return dhT(0.125, 0.0, -0.014, rad - M_PI / 2); }
+  inline Matrix4d T45(const double & rad) { return dhT(0.016, -M_PI / 2, 0.075, rad + M_PI); }
+  inline Matrix4d T5e() { return dhT(0.31, 0.0, 0.0, 0.0); }
 };
 
 #endif  // KEN_FK_HPP_

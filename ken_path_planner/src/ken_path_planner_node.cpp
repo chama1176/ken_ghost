@@ -8,6 +8,9 @@
 #include <chrono>
 #include <functional>
 
+#include <eigen3/Eigen/Dense>
+
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/duration.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -45,6 +48,7 @@ private:
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
 
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr fk_debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
 
@@ -61,6 +65,8 @@ private:
 
   bool received_joint_state_msg_;
   bool sent_disable_msg_;
+
+  KenFK fk_;
 };
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner")
@@ -105,12 +111,12 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner")
 
   cmd_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "ken_joint_trajectory_controller/joint_trajectory", 1);
+  fk_debug_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("debug/fk_pose", 1);
+
   joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
     "joy", 1, std::bind(&KenPathPlanner::joy_callback, this, _1));
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
     "joint_states", 1, std::bind(&KenPathPlanner::joint_state_callback, this, _1));
-
-  KenFK fk;
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -222,6 +228,17 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
     }
     received_joint_state_msg_ = true;
   }
+  Eigen::Matrix4d Tbe = fk_.getTbe(current_pos_);
+
+  geometry_msgs::msg::PoseStamped pose_pub;
+  pose_pub.header.frame_id = "base_link";
+  pose_pub.header.stamp = rclcpp::Time(0);
+  pose_pub.pose.position.x = Tbe(0, 3);
+  pose_pub.pose.position.y = Tbe(1, 3);
+  pose_pub.pose.position.z = Tbe(2, 3);
+  pose_pub.pose.orientation.w = 1.0;
+
+  fk_debug_pub_->publish(pose_pub);
 }
 
 int main(int argc, char * argv[])

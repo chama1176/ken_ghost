@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "ken_path_planner/eigen_dh.hpp"
 #include "ken_path_planner/ken_fk.hpp"
 
 using namespace Eigen;
@@ -25,45 +26,15 @@ KenFK::KenFK()
 
 KenFK::~KenFK() {}
 
-Eigen::Matrix4d KenFK::dhT(const double a, const double alfa, const double d, const double theta)
+Matrix4d KenFK::getTbe(std::vector<double> joint_angle)
 {
-  Matrix4d M;
+  Matrix4d Tbe;
 
-  M = transX(a) * rotX(alfa) * transZ(d) * rotZ(theta);
+  if (joint_angle.size() == 5) {
+    Tbe = Tb0() * T01(joint_angle[0]) * T12(joint_angle[1]) * T23(joint_angle[2]) *
+          T34(joint_angle[3]) * T45(joint_angle[4]) * T5e();
+  }
+  std::cout << Tbe << std::endl;
 
-  return M;
-}
-
-Matrix4d KenFK::rotX(const double rad)
-{
-  Matrix3d R = AngleAxisd(rad, Vector3d::UnitX()).toRotationMatrix();
-  Matrix4d M;
-  M.setIdentity();
-  M.block<3, 3>(0, 0) = R;
-  return M;
-}
-
-Matrix4d KenFK::transX(const double m)
-{
-  Matrix4d M;
-  M.setIdentity();
-  M(0, 3) = m;
-  return M;
-}
-
-Matrix4d KenFK::rotZ(const double rad)
-{
-  Matrix3d R = AngleAxisd(rad, Vector3d::UnitZ()).toRotationMatrix();
-  Matrix4d M;
-  M.setIdentity();
-  M.block<3, 3>(0, 0) = R;
-  return M;
-}
-
-Matrix4d KenFK::transZ(const double m)
-{
-  Matrix4d M;
-  M.setIdentity();
-  M(2, 3) = m;
-  return M;
+  return Tbe;
 }
