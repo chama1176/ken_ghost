@@ -230,13 +230,17 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
   }
   Eigen::Matrix4d Tbe = fk_.getTbe(current_pos_);
 
+  Eigen::Quaterniond Tbe_q(Tbe.block<3, 3>(0, 0));
   geometry_msgs::msg::PoseStamped pose_pub;
   pose_pub.header.frame_id = "base_link";
   pose_pub.header.stamp = rclcpp::Time(0);
   pose_pub.pose.position.x = Tbe(0, 3);
   pose_pub.pose.position.y = Tbe(1, 3);
   pose_pub.pose.position.z = Tbe(2, 3);
-  pose_pub.pose.orientation.w = 1.0;
+  pose_pub.pose.orientation.x = Tbe_q.x();
+  pose_pub.pose.orientation.y = Tbe_q.y();
+  pose_pub.pose.orientation.z = Tbe_q.z();
+  pose_pub.pose.orientation.w = Tbe_q.w();
 
   fk_debug_pub_->publish(pose_pub);
 }
