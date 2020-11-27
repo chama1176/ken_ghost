@@ -243,6 +243,10 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
   pose_pub.pose.orientation.w = Tbe_q.w();
 
   fk_debug_pub_->publish(pose_pub);
+
+  Eigen::MatrixXd Jv = fk_.getJv(current_pos_);
+  std::cout << "Jv" << std::endl;
+  std::cout << Jv << std::endl;
 }
 
 int main(int argc, char * argv[])

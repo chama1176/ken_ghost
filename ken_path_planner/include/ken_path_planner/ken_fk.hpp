@@ -15,7 +15,7 @@ public:
   KenFK();
   ~KenFK();
   Matrix4d getTbe(std::vector<double> joint_angle);
-  Matrix4d getJv(std::vector<double> joint_angle);
+  MatrixXd getJv(std::vector<double> joint_angle);
 
 private:
   // a, alfa, d, theta
