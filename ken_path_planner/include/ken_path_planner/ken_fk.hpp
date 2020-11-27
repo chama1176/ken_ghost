@@ -17,6 +17,7 @@ public:
   Matrix4d getTbe(std::vector<double> joint_angle);
   Matrix4d getJv(std::vector<double> joint_angle);
 
+private:
   // a, alfa, d, theta
   inline Matrix4d Tb0() { return dhT(0.0, 0.0, 0.065, 0.0); }
   inline Matrix4d T01(const double & rad) { return dhT(0.0, 0.0, 0.0, rad); }
@@ -26,7 +27,15 @@ public:
   inline Matrix4d T45(const double & rad) { return dhT(0.016, -M_PI / 2, 0.075, rad + M_PI); }
   inline Matrix4d T5e() { return dhT(0.31, 0.0, 0.0, 0.0); }
 
-private:
+  void setTransform(std::vector<double> joint_angle);
+
+  Matrix4d Tb0_;
+  Matrix4d T01_;
+  Matrix4d T12_;
+  Matrix4d T23_;
+  Matrix4d T34_;
+  Matrix4d T45_;
+  Matrix4d T5e_;
 };
 
 #endif  // KEN_FK_HPP_
