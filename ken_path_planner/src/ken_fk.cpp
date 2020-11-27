@@ -38,3 +38,10 @@ Matrix4d KenFK::getTbe(std::vector<double> joint_angle)
 
   return Tbe;
 }
+
+Matrix4d KenFK::getJv(std::vector<double> joint_angle)
+{
+  Matrix4d Jv;
+
+  return Jv;
+}
