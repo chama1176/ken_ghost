@@ -12,20 +12,20 @@ using namespace Eigen;
 
 KenFK::KenFK(std::vector<double> joint_angle)
 {
-  std::cout << "rotX" << std::endl;
-  std::cout << rotX(M_PI / 4) << std::endl;
-  std::cout << "transX" << std::endl;
-  std::cout << transX(4.3) << std::endl;
-  std::cout << "rotZ" << std::endl;
-  std::cout << rotZ(M_PI / 4) << std::endl;
-  std::cout << "transZ" << std::endl;
-  std::cout << transZ(2.3) << std::endl;
-  std::cout << "dhT" << std::endl;
-  std::cout << dhT(2, 0.0, 3, M_PI / 4) << std::endl;
+  // std::cout << "rotX" << std::endl;
+  // std::cout << rotX(M_PI / 4) << std::endl;
+  // std::cout << "transX" << std::endl;
+  // std::cout << transX(4.3) << std::endl;
+  // std::cout << "rotZ" << std::endl;
+  // std::cout << rotZ(M_PI / 4) << std::endl;
+  // std::cout << "transZ" << std::endl;
+  // std::cout << transZ(2.3) << std::endl;
+  // std::cout << "dhT" << std::endl;
+  // std::cout << dhT(2, 0.0, 3, M_PI / 4) << std::endl;
 
-  auto ez = Vector3d(0, 0, 1);
-  std::cout << "ez" << std::endl;
-  std::cout << ez << std::endl;
+  // auto ez = Vector3d(0, 0, 1);
+  // std::cout << "ez" << std::endl;
+  // std::cout << ez << std::endl;
 
   Tb0_ = Tb0();
   T5e_ = T5e();
@@ -38,7 +38,7 @@ Matrix4d KenFK::computeTbe()
 {
   Matrix4d Tbe;
   Tbe = Tb0_ * T01_ * T12_ * T23_ * T34_ * T45_ * T5e_;
-  std::cout << Tbe << std::endl;
+  //  std::cout << Tbe << std::endl;
 
   return Tbe;
 }

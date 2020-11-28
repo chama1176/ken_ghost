@@ -15,11 +15,12 @@ class KenIK
 public:
   KenIK();
   ~KenIK();
-  std::vector<double> calcPositionIK();
+  std::vector<double> calcPositionIK(const Vector3d & target_pos);
+  std::vector<Matrix4d> getIKlogTbe(void);
 
 private:
-  KenFK fk_;
-  std::vector<std::vector<double>> ik_calc_log_;
+  std::vector<std::vector<double>> calc_joint_angle_log_;
+  std::vector<Matrix4d> calc_Tbe_log_;
 };
 
 #endif  // KEN_IK_HPP_

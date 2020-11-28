@@ -33,7 +33,7 @@ find_package(Eigen3 REQUIRED)
 include_directories(include ${EIGEN3_INCLUDE_DIR})
 
 add_executable(ken_path_planner
-  src/ken_path_planner_node.cpp src/ken_fk.cpp)
+  src/ken_path_planner_node.cpp src/ken_fk.cpp src/ken_ik.cpp)
 
 ament_target_dependencies(ken_path_planner rclcpp std_msgs sensor_msgs geometry_msgs trajectory_msgs) 
 

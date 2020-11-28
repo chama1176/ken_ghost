@@ -11,6 +11,7 @@
 #include <eigen3/Eigen/Dense>
 
 #include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/duration.hpp"
@@ -21,6 +22,7 @@
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 
 #include "ken_path_planner/ken_fk.hpp"
+#include "ken_path_planner/ken_ik.hpp"
 
 using std::placeholders::_1;
 
@@ -47,9 +49,11 @@ private:
 
   void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg);
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
+  void test_ik(void);
 
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr fk_debug_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ik_debug_pose_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_x_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_y_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_z_debug_pub_;
@@ -117,6 +121,7 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   cmd_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "ken_joint_trajectory_controller/joint_trajectory", 1);
   fk_debug_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("debug/fk_pose", 1);
+  ik_debug_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("debug/ik_pose", 1);
   point_x_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_x", 1);
   point_y_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_y", 1);
   point_z_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_z", 1);
@@ -130,6 +135,33 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
 }
 
 KenPathPlanner::~KenPathPlanner() {}
+
+void KenPathPlanner::test_ik(void)
+{
+  KenIK ik;
+  std::vector<double> ans = ik.calcPositionIK(Eigen::Vector3d(0.3, 0.3, 0.4));
+  std::cout << "ik ans pos" << std::endl;
+  for (size_t i = 0; i < ans.size(); ++i) std::cout << ans[i] << std::endl;
+
+  std::vector<Eigen::Matrix4d> ik_Tbe_log = ik.getIKlogTbe();
+  geometry_msgs::msg::PoseArray ik_debug_pose_array;
+  ik_debug_pose_array.header.frame_id = base_frame_id_;
+  ik_debug_pose_array.header.stamp = rclcpp::Time(0);
+  for (size_t i = 0; i < ik_Tbe_log.size(); ++i) {
+    geometry_msgs::msg::Pose Tbepose;
+    Tbepose.position.x = ik_Tbe_log[i](0, 3);
+    Tbepose.position.y = ik_Tbe_log[i](1, 3);
+    Tbepose.position.z = ik_Tbe_log[i](2, 3);
+    Eigen::Quaterniond Tbe_q(ik_Tbe_log[i].block<3, 3>(0, 0));
+    Tbepose.orientation.x = Tbe_q.x();
+    Tbepose.orientation.y = Tbe_q.y();
+    Tbepose.orientation.z = Tbe_q.z();
+    Tbepose.orientation.w = Tbe_q.w();
+
+    ik_debug_pose_array.poses.push_back(Tbepose);
+  }
+  ik_debug_pose_pub_->publish(ik_debug_pose_array);
+}
 
 void KenPathPlanner::pushInterpolateTrajectoryPoints(
   trajectory_msgs::msg::JointTrajectory & jtm,
@@ -220,6 +252,7 @@ void KenPathPlanner::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
     sent_disable_msg_ = false;
   } else {
     if (!sent_disable_msg_) {
+      test_ik();
       // auto message = trajectory_msgs::msg::JointTrajectory();
       // message.joint_names = name_vec_;
       // cmd_pub_->publish(message);
@@ -257,15 +290,15 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
 
   // Code for checking Jacobian
   Eigen::MatrixXd Jv = fk.computeJv();
-  std::cout << "Jv" << std::endl;
-  std::cout << Jv << std::endl;
+  // std::cout << "Jv" << std::endl;
+  // std::cout << Jv << std::endl;
   Eigen::MatrixXd A = Jv * Jv.transpose();
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(A.block<3, 3>(0, 0));
-  if (es.info() == Eigen::Success) {
-    std::cout << "A es" << std::endl;
-    std::cout << es.eigenvalues() << std::endl;
-    std::cout << es.eigenvectors() << std::endl;
-  }
+  // if (es.info() == Eigen::Success) {
+  //   std::cout << "A es" << std::endl;
+  //   std::cout << es.eigenvalues() << std::endl;
+  //   std::cout << es.eigenvectors() << std::endl;
+  // }
   geometry_msgs::msg::PointStamped point_x;
   point_x.header.frame_id = base_frame_id_;
   point_x.header.stamp = rclcpp::Time(0);
