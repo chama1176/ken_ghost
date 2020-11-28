@@ -14,3 +14,10 @@ using namespace Eigen;
 KenIK::KenIK() {}
 
 KenIK::~KenIK() {}
+
+std::vector<double> KenIK::calcPositionIK()
+{
+  std::vector<double> joint_angle(5, 0.0);
+
+  return joint_angle;
+}

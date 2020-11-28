@@ -12,10 +12,10 @@
 class KenFK
 {
 public:
-  KenFK();
+  KenFK(std::vector<double> joint_angle);
   ~KenFK();
-  Matrix4d getTbe(std::vector<double> joint_angle);
-  MatrixXd getJv(std::vector<double> joint_angle);
+  Matrix4d computeTbe();
+  MatrixXd computeJv();
 
 private:
   // a, alfa, d, theta

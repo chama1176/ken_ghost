@@ -10,7 +10,7 @@
 
 using namespace Eigen;
 
-KenFK::KenFK()
+KenFK::KenFK(std::vector<double> joint_angle)
 {
   std::cout << "rotX" << std::endl;
   std::cout << rotX(M_PI / 4) << std::endl;
@@ -28,31 +28,23 @@ KenFK::KenFK()
   std::cout << ez << std::endl;
 
   Tb0_ = Tb0();
-  T01_.setIdentity();
-  T12_.setIdentity();
-  T23_.setIdentity();
-  T34_.setIdentity();
-  T45_.setIdentity();
   T5e_ = T5e();
+  setTransform(joint_angle);
 }
 
 KenFK::~KenFK() {}
 
-Matrix4d KenFK::getTbe(std::vector<double> joint_angle)
+Matrix4d KenFK::computeTbe()
 {
   Matrix4d Tbe;
-  setTransform(joint_angle);
   Tbe = Tb0_ * T01_ * T12_ * T23_ * T34_ * T45_ * T5e_;
-
   std::cout << Tbe << std::endl;
 
   return Tbe;
 }
 
-MatrixXd KenFK::getJv(std::vector<double> joint_angle)
+MatrixXd KenFK::computeJv()
 {
-  setTransform(joint_angle);
-
   Matrix3d R01 = T01_.block<3, 3>(0, 0);
   Matrix3d R12 = T12_.block<3, 3>(0, 0);
   Matrix3d R23 = T23_.block<3, 3>(0, 0);

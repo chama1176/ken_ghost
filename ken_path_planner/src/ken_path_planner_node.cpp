@@ -72,8 +72,6 @@ private:
 
   bool received_joint_state_msg_;
   bool sent_disable_msg_;
-
-  KenFK fk_;
 };
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("base_link")
@@ -239,7 +237,9 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
     received_joint_state_msg_ = true;
   }
   // Code for checking forward kinematics
-  Eigen::Matrix4d Tbe = fk_.getTbe(current_pos_);
+
+  KenFK fk(current_pos_);
+  Eigen::Matrix4d Tbe = fk.computeTbe();
 
   Eigen::Quaterniond Tbe_q(Tbe.block<3, 3>(0, 0));
   geometry_msgs::msg::PoseStamped pose_pub;
@@ -256,7 +256,7 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
   fk_debug_pub_->publish(pose_pub);
 
   // Code for checking Jacobian
-  Eigen::MatrixXd Jv = fk_.getJv(current_pos_);
+  Eigen::MatrixXd Jv = fk.computeJv();
   std::cout << "Jv" << std::endl;
   std::cout << Jv << std::endl;
   Eigen::MatrixXd A = Jv * Jv.transpose();
