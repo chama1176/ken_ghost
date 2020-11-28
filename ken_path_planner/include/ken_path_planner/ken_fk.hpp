@@ -15,6 +15,7 @@ public:
   KenFK();
   ~KenFK();
   Matrix4d getTbe(std::vector<double> joint_angle);
+  MatrixXd getJv(std::vector<double> joint_angle);
 
 private:
   // a, alfa, d, theta
@@ -25,6 +26,16 @@ private:
   inline Matrix4d T34(const double & rad) { return dhT(0.125, 0.0, -0.014, rad - M_PI / 2); }
   inline Matrix4d T45(const double & rad) { return dhT(0.016, -M_PI / 2, 0.075, rad + M_PI); }
   inline Matrix4d T5e() { return dhT(0.31, 0.0, 0.0, 0.0); }
+
+  void setTransform(std::vector<double> joint_angle);
+
+  Matrix4d Tb0_;
+  Matrix4d T01_;
+  Matrix4d T12_;
+  Matrix4d T23_;
+  Matrix4d T34_;
+  Matrix4d T45_;
+  Matrix4d T5e_;
 };
 
 #endif  // KEN_FK_HPP_
