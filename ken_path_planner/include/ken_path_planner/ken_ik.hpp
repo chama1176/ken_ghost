@@ -21,6 +21,13 @@ public:
 private:
   std::vector<std::vector<double>> calc_joint_angle_log_;
   std::vector<Matrix4d> calc_Tbe_log_;
+  std::vector<double> joint_limit_min_ = {deg2rad(-180.0), deg2rad(-10.0), deg2rad(-150.0),
+                                          deg2rad(-90.0), deg2rad(-180.0)};
+  std::vector<double> joint_limit_max_ = {deg2rad(180.0), deg2rad(180.0), deg2rad(150.0),
+                                          deg2rad(90.0), deg2rad(180.0)};
+
+  void resetJointLimit(std::vector<double> & joint_angle);
+  inline double deg2rad(double deg) { return deg * M_PI / 180; }
 };
 
 #endif  // KEN_IK_HPP_

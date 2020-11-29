@@ -94,6 +94,10 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   this->declare_parameter("move_time", 0.0);
   this->get_parameter("move_time", move_time_);
 
+  this->declare_parameter("ik_test_pos_x", 0.0);
+  this->declare_parameter("ik_test_pos_y", 0.0);
+  this->declare_parameter("ik_test_pos_z", 0.0);
+
   if (joint_num_ > 0) {
     this->declare_parameter("name", std::vector<std::string>(joint_num_, ""));
     this->get_parameter("name", name_vec_);
@@ -138,8 +142,13 @@ KenPathPlanner::~KenPathPlanner() {}
 
 void KenPathPlanner::test_ik(void)
 {
+  std::vector<double> ik_test_pos(3, 0.0);
+  this->get_parameter("ik_test_pos_x", ik_test_pos[0]);
+  this->get_parameter("ik_test_pos_y", ik_test_pos[1]);
+  this->get_parameter("ik_test_pos_z", ik_test_pos[2]);
+
   KenIK ik;
-  std::vector<double> ans = ik.calcPositionIK(Eigen::Vector3d(0.3, 0.3, 0.4));
+  std::vector<double> ans = ik.calcPositionIK(Eigen::Vector3d(ik_test_pos.data()));
   std::cout << "ik ans pos" << std::endl;
   for (size_t i = 0; i < ans.size(); ++i) std::cout << ans[i] << std::endl;
 
@@ -269,6 +278,7 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
     }
     received_joint_state_msg_ = true;
   }
+
   // Code for checking forward kinematics
 
   KenFK fk(current_pos_);

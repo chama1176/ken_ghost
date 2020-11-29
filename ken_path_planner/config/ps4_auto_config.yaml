@@ -9,6 +9,10 @@ ken_path_planner:
 
     kamae_pos: [0.602854449639057, 2.5356702423749646, -2.495786741889938, -1.5109710760673565, -0.7516505860639642]
 
+    ik_test_pos_x: 0.0
+    ik_test_pos_y: 0.0
+    ik_test_pos_z: 0.0
+
     joint_num: 5
     enable_button: 4  # L1 shoulder button
     move_home_button: 3  # square button
