@@ -1,0 +1,23 @@
+vision_target_detector:
+  ros__parameters:
+    red_h_range_max: 10
+    red_h_range_min: 170
+    blue_h_range_max: 160
+    blue_h_range_min: 140
+    yellow_h_range_max: 35
+    yellow_h_range_min: 25
+    green_h_range_max: 120
+    green_h_range_min: 50
+    s_range_max: 255
+    s_range_min: 50
+    v_range_max: 255
+    v_range_min: 50
+    area_size_thres: 900
+    depth_detection_area_thres: 600
+    fx: 612.6250610351562 # camera k 0
+    fy: 613.1917724609375 # camera k 4
+    cx: 319.5198059082031 # camera k 2
+    cy: 245.94915771484375 # camera k 5
+
+
+

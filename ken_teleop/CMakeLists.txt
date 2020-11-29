@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ken_target_detect)
+project(ken_teleop)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -18,23 +18,27 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(message_filters REQUIRED)
-find_package(std_msgs REQUIRED)
+find_package(joy REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(cv_bridge REQUIRED)
-
+find_package(trajectory_msgs REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-add_executable(detect src/detect_node.cpp)
-ament_target_dependencies(detect rclcpp message_filters std_msgs sensor_msgs geometry_msgs cv_bridge opencv2) 
+add_executable(ken_teleop_joy
+  src/ken_teleop_node.cpp)
 
-install(TARGETS
-  detect
-  DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(ken_teleop_joy
+    joy
+    sensor_msgs
+    trajectory_msgs
+    rclcpp
+)
+
+install(TARGETS ken_teleop_joy
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
