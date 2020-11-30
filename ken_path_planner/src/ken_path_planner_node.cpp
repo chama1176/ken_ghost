@@ -21,6 +21,8 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 
+#include "ken_msgs/msg/mission_target_array.hpp"
+#include "ken_msgs/msg/mission_trajectory.hpp"
 #include "ken_path_planner/ken_fk.hpp"
 #include "ken_path_planner/ken_ik.hpp"
 
@@ -48,6 +50,8 @@ private:
     const trajectory_msgs::msg::JointTrajectoryPoint end, int interpolate_num);
 
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
+  void mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg);
+
   void test_ik(void);
 
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
@@ -57,11 +61,11 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_y_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_z_debug_pub_;
 
+  rclcpp::Publisher<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_pub_;
+
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
 
-  int64_t enable_button_;
-  int64_t move_home_button_;
-  int64_t move_kamae_button_;
+  rclcpp::Subscription<ken_msgs::msg::MissionTargetArray>::SharedPtr mission_target_sub_;
 
   int64_t joint_num_;
   double move_time_;
@@ -116,8 +120,14 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   point_y_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_y", 1);
   point_z_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_z", 1);
 
+  mission_trajectory_pub_ =
+    this->create_publisher<ken_msgs::msg::MissionTrajectory>("mission_trajectory", 1);
+
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
     "joint_states", 1, std::bind(&KenPathPlanner::joint_state_callback, this, _1));
+
+  mission_target_sub_ = this->create_subscription<ken_msgs::msg::MissionTargetArray>(
+    "mission_target", 1, std::bind(&KenPathPlanner::mission_target_callback, this, _1));
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -284,6 +294,31 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
   point_z.point.y = es.eigenvectors().col(2)(1) * es.eigenvalues()(2) + Tbe(1, 3);
   point_z.point.z = es.eigenvectors().col(2)(2) * es.eigenvalues()(2) + Tbe(2, 3);
   point_z_debug_pub_->publish(point_z);
+}
+
+void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg)
+{
+  ken_msgs::msg::MissionTrajectory mtm;
+  mtm.header.frame_id = base_frame_id_;
+  mtm.header.stamp = rclcpp::Time(0);
+  mtm.plan_result = true;
+
+  for (size_t i = 0; i < msg->type.size(); ++i) {
+    trajectory_msgs::msg::JointTrajectory jt;
+
+    if (msg->type[i] == msg->HOME) {
+      makeMoveHomeTrajectory(jt);
+    } else if (msg->type[i] == msg->HOME) {
+      makeMoveKamaeTrajectory(jt);
+    } else {
+      mtm.plan_result = false;
+      break;
+    }
+
+    mtm.trajectories.push_back(jt);
+  }
+
+  mission_trajectory_pub_->publish(mtm);
 }
 
 int main(int argc, char * argv[])

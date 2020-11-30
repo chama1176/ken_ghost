@@ -28,6 +28,7 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+
 find_package(ken_msgs REQUIRED)
 
 add_executable(ken_mission_manager
