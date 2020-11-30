@@ -47,7 +47,6 @@ private:
     const trajectory_msgs::msg::JointTrajectoryPoint start,
     const trajectory_msgs::msg::JointTrajectoryPoint end, int interpolate_num);
 
-  void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg);
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
   void test_ik(void);
 
@@ -58,7 +57,6 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_y_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_z_debug_pub_;
 
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
 
   int64_t enable_button_;
@@ -80,14 +78,6 @@ private:
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("base_link")
 {
-  this->declare_parameter("enable_button", -1);
-  this->get_parameter("enable_button", enable_button_);
-
-  this->declare_parameter("move_home_button", -1);
-  this->get_parameter("move_home_button", move_home_button_);
-  this->declare_parameter("move_kamae_button", -1);
-  this->get_parameter("move_kamae_button", move_kamae_button_);
-
   this->declare_parameter("joint_num", -1);
   this->get_parameter("joint_num", joint_num_);
 
@@ -112,10 +102,6 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
     }
   }
 
-  RCLCPP_INFO(this->get_logger(), "Teleop enable button: %d", enable_button_);
-  RCLCPP_INFO(this->get_logger(), "Move home button: %d", move_home_button_);
-  RCLCPP_INFO(this->get_logger(), "Move kamae button: %d", move_kamae_button_);
-
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
   RCLCPP_INFO(this->get_logger(), "Joint num: %d", joint_num_);
 
@@ -130,8 +116,6 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   point_y_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_y", 1);
   point_z_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_z", 1);
 
-  joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
-    "joy", 1, std::bind(&KenPathPlanner::joy_callback, this, _1));
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
     "joint_states", 1, std::bind(&KenPathPlanner::joint_state_callback, this, _1));
 
@@ -236,38 +220,6 @@ void KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajecto
   }
 
   pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
-}
-
-void KenPathPlanner::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
-{
-  if (
-    received_joint_state_msg_ && enable_button_ >= 0 &&
-    static_cast<int>(msg->buttons.size()) > enable_button_ && msg->buttons[enable_button_]) {
-    if (
-      move_home_button_ >= 0 && static_cast<int>(msg->buttons.size()) > move_home_button_ &&
-      msg->buttons[move_home_button_]) {
-      auto message = trajectory_msgs::msg::JointTrajectory();
-      makeMoveHomeTrajectory(message);
-      cmd_pub_->publish(message);
-    }
-    if (
-      move_kamae_button_ >= 0 && static_cast<int>(msg->buttons.size()) > move_kamae_button_ &&
-      msg->buttons[move_kamae_button_]) {
-      auto message = trajectory_msgs::msg::JointTrajectory();
-      makeMoveKamaeTrajectory(message);
-      cmd_pub_->publish(message);
-    }
-
-    sent_disable_msg_ = false;
-  } else {
-    if (!sent_disable_msg_) {
-      test_ik();
-      // auto message = trajectory_msgs::msg::JointTrajectory();
-      // message.joint_names = name_vec_;
-      // cmd_pub_->publish(message);
-      sent_disable_msg_ = true;
-    }
-  }
 }
 
 void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg)

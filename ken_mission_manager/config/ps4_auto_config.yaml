@@ -1,0 +1,8 @@
+ken_path_planner:
+  ros__parameters:
+
+    enable_button: 4  # L1 shoulder button
+    move_home_button: 3  # square button
+    move_kamae_button: 2  # triangle button
+
+    move_time: 0.5
