@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ken_path_planner)
+project(ken_msgs)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -21,34 +21,16 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
-find_package(ken_msgs REQUIRED)
-
-find_package(Eigen3 REQUIRED)
-
-include_directories(include ${EIGEN3_INCLUDE_DIR})
-
-add_executable(ken_path_planner
-  src/ken_path_planner_node.cpp src/ken_fk.cpp src/ken_ik.cpp)
-
-ament_target_dependencies(ken_path_planner rclcpp std_msgs sensor_msgs geometry_msgs trajectory_msgs ken_msgs) 
-
-install(TARGETS
-  ken_path_planner
-  DESTINATION lib/${PROJECT_NAME})
-
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION include)
-
-install(DIRECTORY launch config
-  DESTINATION share/${PROJECT_NAME}
-)
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/MissionTargetArray.msg"
+  "msg/MissionTrajectory.msg"
+  DEPENDENCIES std_msgs geometry_msgs trajectory_msgs
+ )
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
