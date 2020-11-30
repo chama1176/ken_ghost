@@ -35,8 +35,10 @@ public:
   ~KenMissionManager();
 
 private:
-  void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg);
-  void timer_callback(void);
+  void joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg);
+  void timerCallback(void);
+  void updateStatus(void);
+  void executeMission(void);
 
   inline bool is_in_range(const int & value, const int & min, const int & max)
   {
@@ -50,13 +52,20 @@ private:
 
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
 
+  enum MissionState { WAITING, DURING_EXECUTION, TORQUE_DISABLED };
+
+  MissionState current_state_;
   int64_t enable_button_;
   int64_t move_home_button_;
   int64_t move_kamae_button_;
 
-  bool enable_button_pushed_;
-  bool move_home_button_pushed_;
-  bool move_kamae_button_pushed_;
+  bool is_enable_button_pushed_;
+  bool is_move_home_button_pushed_;
+  bool is_move_kamae_button_pushed_;
+
+  bool is_target_sent_;
+  bool is_cmd_sent_;
+  bool is_goal_;
 
   double move_time_;
 
@@ -87,34 +96,90 @@ KenMissionManager::KenMissionManager() : Node("ken_mission_manager")
   cmd_string_pub_ = this->create_publisher<std_msgs::msg::String>("ken_cmd_string", 1);
 
   joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
-    "joy", 1, std::bind(&KenMissionManager::joy_callback, this, _1));
+    "joy", 1, std::bind(&KenMissionManager::joyCallback, this, _1));
 
-  timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timer_callback, this));
+  timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timerCallback, this));
+
+  current_state_ = MissionState::WAITING;
+  is_target_sent_ = false;
+  is_cmd_sent_ = false;
+  is_goal_ = false;
 
   std::cout << "Finish Initialization" << std::endl;
 }
 
 KenMissionManager::~KenMissionManager() {}
 
-void KenMissionManager::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
+void KenMissionManager::joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
 {
   int msg_buttons_size = static_cast<int>(msg->buttons.size());
 
   if (is_in_range(enable_button_, 0, msg_buttons_size))
-    enable_button_pushed_ = msg->buttons[enable_button_];
+    is_enable_button_pushed_ = msg->buttons[enable_button_];
 
   if (is_in_range(move_home_button_, 0, msg_buttons_size))
-    move_home_button_pushed_ = msg->buttons[move_home_button_];
+    is_move_home_button_pushed_ = msg->buttons[move_home_button_];
 
   if (is_in_range(move_kamae_button_, 0, msg_buttons_size))
-    move_kamae_button_pushed_ = msg->buttons[move_kamae_button_];
+    is_move_kamae_button_pushed_ = msg->buttons[move_kamae_button_];
 }
 
-void KenMissionManager::timer_callback(void)
+void KenMissionManager::timerCallback(void)
 {
-  std_msgs::msg::String cmd_string;
-  cmd_string.data = "men";
-  cmd_string_pub_->publish(cmd_string);
+  updateStatus();
+  executeMission();
+}
+
+void KenMissionManager::updateStatus(void)
+{
+  switch (current_state_) {
+    case MissionState::WAITING: {
+      if (is_move_home_button_pushed_) {
+        current_state_ = MissionState::DURING_EXECUTION;
+        is_target_sent_ = false;
+        is_cmd_sent_ = false;
+      }
+    } break;
+
+    case MissionState::DURING_EXECUTION: {
+      if (is_target_sent_ && is_cmd_sent_ && is_goal_) {
+        current_state_ = MissionState::WAITING;
+      }
+
+    } break;
+
+    case MissionState::TORQUE_DISABLED: {
+    } break;
+
+    default:
+      break;
+  }
+}
+
+void KenMissionManager::executeMission(void)
+{
+  switch (current_state_) {
+    case MissionState::WAITING: {
+      // do nothing
+    } break;
+
+    case MissionState::DURING_EXECUTION: {
+      is_target_sent_ = true;
+      if (!is_cmd_sent_) {
+        auto cmd_string = std_msgs::msg::String();
+        cmd_string.data = "men";
+        cmd_string_pub_->publish(cmd_string);
+        is_cmd_sent_ = true;
+      }
+      is_goal_ = true;
+    } break;
+
+    case MissionState::TORQUE_DISABLED: {
+    } break;
+
+    default:
+      break;
+  }
 }
 
 int main(int argc, char * argv[])
