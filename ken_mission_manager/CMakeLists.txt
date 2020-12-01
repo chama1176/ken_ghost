@@ -28,13 +28,16 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(ken_msgs REQUIRED)
 
 add_executable(ken_mission_manager
   src/ken_mission_manager_node.cpp)
 
-ament_target_dependencies(ken_mission_manager rclcpp std_msgs sensor_msgs geometry_msgs trajectory_msgs ken_msgs) 
+ament_target_dependencies(ken_mission_manager rclcpp std_msgs sensor_msgs geometry_msgs trajectory_msgs tf2 tf2_ros tf2_geometry_msgs ken_msgs) 
 
 install(TARGETS
   ken_mission_manager

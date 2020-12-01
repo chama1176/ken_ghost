@@ -12,12 +12,17 @@
 
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/duration.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
+
+#include "tf2/convert.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "tf2_ros/transform_listener.h"
 
 #include "ken_msgs/msg/mission_target_array.hpp"
 #include "ken_msgs/msg/mission_trajectory.hpp"
@@ -52,6 +57,11 @@ private:
     if (max < value) return false;
     return true;
   }
+
+  rclcpp::Clock ros_clock_;
+  tf2_ros::Buffer tf2_buffer_;
+  tf2_ros::TransformListener tf2_listener_;
+  geometry_msgs::msg::TransformStamped s2b_transform_;
 
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr cmd_string_pub_;
@@ -96,7 +106,11 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
-KenMissionManager::KenMissionManager() : Node("ken_mission_manager")
+KenMissionManager::KenMissionManager()
+: Node("ken_mission_manager"),
+  ros_clock_(RCL_ROS_TIME),
+  tf2_buffer_(std::make_shared<rclcpp::Clock>(ros_clock_)),
+  tf2_listener_(tf2_buffer_)
 {
   this->declare_parameter("enable_button", -1);
   this->get_parameter("enable_button", enable_button_);
@@ -129,6 +143,12 @@ KenMissionManager::KenMissionManager() : Node("ken_mission_manager")
     "mission_trajectory", 1, std::bind(&KenMissionManager::mission_trajectory_callback, this, _1));
   red_target_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
     "red_target", 1, std::bind(&KenMissionManager::redTargetCallback, this, _1));
+
+  try {
+    s2b_transform_ = tf2_buffer_.lookupTransform("base_link", "world", tf2::TimePoint(100ms));
+  } catch (const tf2::TransformException & e) {
+    std::cerr << e.what() << '\n';
+  }
 
   timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timerCallback, this));
 
@@ -275,8 +295,13 @@ void KenMissionManager::executeMission(void)
       mta.type.push_back(mta.KAMAE);
       mta.poses.push_back(geometry_msgs::msg::Pose());
       if (!red_target_.poses.empty()) {
+        geometry_msgs::msg::PoseStamped target_transformed;
+        geometry_msgs::msg::PoseStamped target_pose;
+        target_pose.pose = red_target_.poses.front();
+        target_pose.header = red_target_.header;
+        tf2::doTransform(target_pose, target_transformed, s2b_transform_);
         mta.type.push_back(mta.MEN);
-        mta.poses.push_back(red_target_.poses.front());
+        mta.poses.push_back(target_transformed.pose);
       }
       mission_target_pub_->publish(mta);
     } break;
