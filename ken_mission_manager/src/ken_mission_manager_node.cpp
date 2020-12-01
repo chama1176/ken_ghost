@@ -41,6 +41,8 @@ private:
   void joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg);
   void mission_trajectory_callback(const ken_msgs::msg::MissionTrajectory::SharedPtr msg);
   void timerCallback(void);
+  void redTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
+
   void updateStatus(void);
   void executeMission(void);
 
@@ -57,6 +59,7 @@ private:
   rclcpp::Publisher<ken_msgs::msg::MissionTargetArray>::SharedPtr mission_target_pub_;
 
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr red_target_sub_;
 
   rclcpp::Subscription<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_sub_;
 
@@ -72,13 +75,17 @@ private:
   MissionState current_state_;
   ken_msgs::msg::MissionTrajectory recieved_mission_trajectory_;
 
+  geometry_msgs::msg::PoseArray red_target_;
+
   int64_t enable_button_;
   int64_t move_home_button_;
   int64_t move_kamae_button_;
+  int64_t auto_button_;
 
   bool is_enable_button_pushed_;
   bool is_move_home_button_pushed_;
   bool is_move_kamae_button_pushed_;
+  bool is_auto_button_pushed_;
 
   bool is_target_sent_;
   bool is_cmd_sent_;
@@ -98,6 +105,8 @@ KenMissionManager::KenMissionManager() : Node("ken_mission_manager")
   this->get_parameter("move_home_button", move_home_button_);
   this->declare_parameter("move_kamae_button", -1);
   this->get_parameter("move_kamae_button", move_kamae_button_);
+  this->declare_parameter("auto_button", -1);
+  this->get_parameter("auto_button", auto_button_);
 
   this->declare_parameter("move_time", 0.0);
   this->get_parameter("move_time", move_time_);
@@ -118,6 +127,8 @@ KenMissionManager::KenMissionManager() : Node("ken_mission_manager")
     "joy", 1, std::bind(&KenMissionManager::joyCallback, this, _1));
   mission_trajectory_sub_ = this->create_subscription<ken_msgs::msg::MissionTrajectory>(
     "mission_trajectory", 1, std::bind(&KenMissionManager::mission_trajectory_callback, this, _1));
+  red_target_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+    "red_target", 1, std::bind(&KenMissionManager::redTargetCallback, this, _1));
 
   timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timerCallback, this));
 
@@ -141,6 +152,9 @@ void KenMissionManager::joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
 
   if (is_in_range(move_kamae_button_, 0, msg_buttons_size))
     is_move_kamae_button_pushed_ = msg->buttons[move_kamae_button_];
+
+  if (is_in_range(auto_button_, 0, msg_buttons_size))
+    is_auto_button_pushed_ = msg->buttons[auto_button_];
 }
 
 void KenMissionManager::mission_trajectory_callback(
@@ -153,6 +167,11 @@ void KenMissionManager::timerCallback(void)
 {
   updateStatus();
   executeMission();
+}
+
+void KenMissionManager::redTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
+{
+  red_target_ = *msg;
 }
 
 void KenMissionManager::updateStatus(void)
@@ -181,6 +200,11 @@ void KenMissionManager::updateStatus(void)
         current_state_ = MissionState::DURING_EXECUTION;
         RCLCPP_INFO(this->get_logger(), "During execution");
         is_goal_ = true;
+      } else if (is_auto_button_pushed_) {
+        recieved_mission_trajectory_.plan_result = false;
+        current_state_ = MissionState::AUTO_PLANNING;
+        RCLCPP_INFO(this->get_logger(), "Auto");
+        is_goal_ = true;
       }
 
     } break;
@@ -190,7 +214,23 @@ void KenMissionManager::updateStatus(void)
         RCLCPP_INFO(this->get_logger(), "Waiting");
         current_state_ = MissionState::WAITING;
       }
+    } break;
 
+    case MissionState::AUTO_WAITING: {
+    } break;
+
+    case MissionState::AUTO_PLANNING: {
+      if (recieved_mission_trajectory_.plan_result) {
+        RCLCPP_INFO(this->get_logger(), "Auto exe");
+        current_state_ = MissionState::AUTO_DURING_EXECUTION;
+      }
+    } break;
+
+    case MissionState::AUTO_DURING_EXECUTION: {
+      if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
+        RCLCPP_INFO(this->get_logger(), "Waiting");
+        current_state_ = MissionState::WAITING;
+      }
     } break;
 
     case MissionState::TORQUE_DISABLED: {
@@ -209,6 +249,39 @@ void KenMissionManager::executeMission(void)
     } break;
 
     case MissionState::DURING_EXECUTION: {
+      if (
+        is_goal_ && recieved_mission_trajectory_.plan_result &&
+        !recieved_mission_trajectory_.trajectories.empty()) {
+        auto cmd_string = std_msgs::msg::String();
+        cmd_string.data = recieved_mission_trajectory_.type_names.back();
+        cmd_string_pub_->publish(cmd_string);
+        cmd_pub_->publish(recieved_mission_trajectory_.trajectories.back());
+        recieved_mission_trajectory_.trajectories.pop_back();
+        recieved_mission_trajectory_.type_names.pop_back();
+        is_goal_ = false;
+        is_goal_ = true;
+      }
+    } break;
+
+    case MissionState::AUTO_WAITING: {
+    } break;
+
+    case MissionState::AUTO_PLANNING: {
+      // TODO: Change push target
+      // TODO: Check target range
+      recieved_mission_trajectory_.plan_result = false;
+      ken_msgs::msg::MissionTargetArray mta;
+      mta.header.stamp = rclcpp::Time(0);
+      mta.type.push_back(mta.KAMAE);
+      mta.poses.push_back(geometry_msgs::msg::Pose());
+      if (!red_target_.poses.empty()) {
+        mta.type.push_back(mta.MEN);
+        mta.poses.push_back(red_target_.poses.front());
+      }
+      mission_target_pub_->publish(mta);
+    } break;
+
+    case MissionState::AUTO_DURING_EXECUTION: {
       if (
         is_goal_ && recieved_mission_trajectory_.plan_result &&
         !recieved_mission_trajectory_.trajectories.empty()) {

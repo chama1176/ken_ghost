@@ -11,6 +11,7 @@
 #include <eigen3/Eigen/Dense>
 
 #include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "rclcpp/clock.hpp"
@@ -43,6 +44,8 @@ public:
 private:
   void makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
   void makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  void makeMenTrajectory(
+    trajectory_msgs::msg::JointTrajectory & jtm, const geometry_msgs::msg::Pose pose);
 
   void pushInterpolateTrajectoryPoints(
     trajectory_msgs::msg::JointTrajectory & jtm,
@@ -232,6 +235,56 @@ void KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajecto
   pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
 }
 
+void KenPathPlanner::makeMenTrajectory(
+  trajectory_msgs::msg::JointTrajectory & jtm, const geometry_msgs::msg::Pose pose)
+{
+  jtm.header.stamp = rclcpp::Time(0);
+  jtm.joint_names = name_vec_;
+
+  trajectory_msgs::msg::JointTrajectoryPoint start_point;
+  start_point.time_from_start.sec = 0;
+  start_point.time_from_start.nanosec = 0;
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    start_point.positions.push_back(current_pos_[i]);
+  }
+
+  trajectory_msgs::msg::JointTrajectoryPoint end_point;
+  end_point.time_from_start.sec = (uint32_t)move_time_;
+  end_point.time_from_start.nanosec =
+    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+
+  Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+  KenIK ik;
+  std::vector<double> ik_ans = ik.calcPositionIK(target_pos);
+  std::cout << "ik ans pos" << std::endl;
+  for (size_t i = 0; i < ik_ans.size(); ++i) std::cout << ik_ans[i] << std::endl;
+
+  std::vector<Eigen::Matrix4d> ik_Tbe_log = ik.getIKlogTbe();
+  geometry_msgs::msg::PoseArray ik_debug_pose_array;
+  ik_debug_pose_array.header.frame_id = base_frame_id_;
+  ik_debug_pose_array.header.stamp = rclcpp::Time(0);
+  for (size_t i = 0; i < ik_Tbe_log.size(); ++i) {
+    geometry_msgs::msg::Pose Tbepose;
+    Tbepose.position.x = ik_Tbe_log[i](0, 3);
+    Tbepose.position.y = ik_Tbe_log[i](1, 3);
+    Tbepose.position.z = ik_Tbe_log[i](2, 3);
+    Eigen::Quaterniond Tbe_q(ik_Tbe_log[i].block<3, 3>(0, 0));
+    Tbepose.orientation.x = Tbe_q.x();
+    Tbepose.orientation.y = Tbe_q.y();
+    Tbepose.orientation.z = Tbe_q.z();
+    Tbepose.orientation.w = Tbe_q.w();
+
+    ik_debug_pose_array.poses.push_back(Tbepose);
+  }
+  ik_debug_pose_pub_->publish(ik_debug_pose_array);
+
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    end_point.positions.push_back(ik_ans[i]);
+  }
+
+  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
+}
+
 void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
   if (msg->position.size() == (size_t)joint_num_) {
@@ -313,6 +366,9 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
     } else if (msg->type[i] == msg->KAMAE) {
       makeMoveKamaeTrajectory(jt);
       jt_name = "kamae";
+    } else if (msg->type[i] == msg->MEN) {
+      makeMenTrajectory(jt, msg->poses[i]);
+      jt_name = "men";
     } else {
       mtm.plan_result = false;
       break;
