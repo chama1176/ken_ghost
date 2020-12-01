@@ -9,4 +9,5 @@ byte TSUKI = 8
 std_msgs/Header header
 int32[] type
 bool plan_result
+string[] type_names
 trajectory_msgs/JointTrajectory[] trajectories

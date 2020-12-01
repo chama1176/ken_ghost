@@ -60,7 +60,14 @@ private:
 
   rclcpp::Subscription<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_sub_;
 
-  enum MissionState { WAITING, DURING_EXECUTION, TORQUE_DISABLED };
+  enum MissionState {
+    WAITING,
+    DURING_EXECUTION,
+    AUTO_WAITING,
+    AUTO_PLANNING,
+    AUTO_DURING_EXECUTION,
+    TORQUE_DISABLED
+  };
 
   MissionState current_state_;
   ken_msgs::msg::MissionTrajectory recieved_mission_trajectory_;
@@ -115,9 +122,7 @@ KenMissionManager::KenMissionManager() : Node("ken_mission_manager")
   timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timerCallback, this));
 
   current_state_ = MissionState::WAITING;
-  is_target_sent_ = false;
-  is_cmd_sent_ = false;
-  is_goal_ = false;
+  is_goal_ = true;
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -155,21 +160,34 @@ void KenMissionManager::updateStatus(void)
   switch (current_state_) {
     case MissionState::WAITING: {
       if (is_move_home_button_pushed_) {
+        recieved_mission_trajectory_.plan_result = false;
         ken_msgs::msg::MissionTargetArray mta;
         mta.header.stamp = rclcpp::Time(0);
         mta.type.push_back(mta.HOME);
         mta.poses.push_back(geometry_msgs::msg::Pose());
         mission_target_pub_->publish(mta);
-        is_target_sent_ = true;
-        recieved_mission_trajectory_.plan_result = false;
 
         current_state_ = MissionState::DURING_EXECUTION;
-        is_cmd_sent_ = false;
+        RCLCPP_INFO(this->get_logger(), "During execution");
+        is_goal_ = true;
+      } else if (is_move_kamae_button_pushed_) {
+        recieved_mission_trajectory_.plan_result = false;
+        ken_msgs::msg::MissionTargetArray mta;
+        mta.header.stamp = rclcpp::Time(0);
+        mta.type.push_back(mta.KAMAE);
+        mta.poses.push_back(geometry_msgs::msg::Pose());
+        mission_target_pub_->publish(mta);
+
+        current_state_ = MissionState::DURING_EXECUTION;
+        RCLCPP_INFO(this->get_logger(), "During execution");
+        is_goal_ = true;
       }
+
     } break;
 
     case MissionState::DURING_EXECUTION: {
-      if (is_target_sent_ && is_cmd_sent_ && is_goal_) {
+      if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
+        RCLCPP_INFO(this->get_logger(), "Waiting");
         current_state_ = MissionState::WAITING;
       }
 
@@ -191,14 +209,16 @@ void KenMissionManager::executeMission(void)
     } break;
 
     case MissionState::DURING_EXECUTION: {
-      if (is_target_sent_) {
-        if (!is_cmd_sent_ && recieved_mission_trajectory_.plan_result) {
-          auto cmd_string = std_msgs::msg::String();
-          cmd_string.data = "men";
-          cmd_string_pub_->publish(cmd_string);
-          cmd_pub_->publish(recieved_mission_trajectory_.trajectories[0]);
-          is_cmd_sent_ = true;
-        }
+      if (
+        is_goal_ && recieved_mission_trajectory_.plan_result &&
+        !recieved_mission_trajectory_.trajectories.empty()) {
+        auto cmd_string = std_msgs::msg::String();
+        cmd_string.data = recieved_mission_trajectory_.type_names.back();
+        cmd_string_pub_->publish(cmd_string);
+        cmd_pub_->publish(recieved_mission_trajectory_.trajectories.back());
+        recieved_mission_trajectory_.trajectories.pop_back();
+        recieved_mission_trajectory_.type_names.pop_back();
+        is_goal_ = false;
         is_goal_ = true;
       }
     } break;

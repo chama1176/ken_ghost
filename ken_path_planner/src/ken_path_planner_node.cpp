@@ -302,20 +302,24 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
   mtm.header.frame_id = base_frame_id_;
   mtm.header.stamp = rclcpp::Time(0);
   mtm.plan_result = true;
+  mtm.type = msg->type;
 
-  for (size_t i = 0; i < msg->type.size(); ++i) {
+  for (int i = (int)msg->type.size() - 1; i >= 0; --i) {
     trajectory_msgs::msg::JointTrajectory jt;
-
+    std::string jt_name;
     if (msg->type[i] == msg->HOME) {
       makeMoveHomeTrajectory(jt);
-    } else if (msg->type[i] == msg->HOME) {
+      jt_name = "home";
+    } else if (msg->type[i] == msg->KAMAE) {
       makeMoveKamaeTrajectory(jt);
+      jt_name = "kamae";
     } else {
       mtm.plan_result = false;
       break;
     }
 
     mtm.trajectories.push_back(jt);
+    mtm.type_names.push_back(jt_name);
   }
 
   mission_trajectory_pub_->publish(mtm);
