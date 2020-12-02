@@ -15,14 +15,11 @@ KenIK::KenIK() {}
 
 KenIK::~KenIK() {}
 
-std::vector<double> KenIK::calcPositionIK(const Vector3d & target_pos)
+bool KenIK::calcPositionIK(
+  const Vector3d & target_pos, const std::vector<double> & ref_angle,
+  std::vector<double> & joint_angle)
 {
-  std::vector<double> joint_angle(5, 0.0);
-  joint_angle[0] = 0.602854449639057;
-  joint_angle[1] = 2.5356702423749646;
-  joint_angle[2] = -2.495786741889938;
-  joint_angle[3] = -1.5109710760673565;
-  joint_angle[4] = -0.7516505860639642;
+  joint_angle = ref_angle;
 
   for (size_t n = 0; n < 100; ++n) {
     KenFK fk(joint_angle);
@@ -34,7 +31,7 @@ std::vector<double> KenIK::calcPositionIK(const Vector3d & target_pos)
     std::cout << "e" << e.transpose() << std::endl;
     if (std::abs(e(0)) <= 0.001 && std::abs(e(1)) <= 0.001 && std::abs(e(2)) <= 0.001) {
       std::cout << "IK solved" << std::endl;
-      return joint_angle;
+      return true;
     }
     // TODO: 1e-6とかのオーダーでしか変化がない場合も抜け出すようにする
 
@@ -53,7 +50,7 @@ std::vector<double> KenIK::calcPositionIK(const Vector3d & target_pos)
   }
 
   std::cout << "Failed to solve IK" << std::endl;
-  return joint_angle;
+  return false;
 }
 
 std::vector<Matrix4d> KenIK::getIKlogTbe(void) { return calc_Tbe_log_; }

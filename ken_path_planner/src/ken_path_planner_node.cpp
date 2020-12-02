@@ -55,8 +55,6 @@ private:
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
   void mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg);
 
-  void test_ik(void);
-
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr fk_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ik_debug_pose_pub_;
@@ -137,38 +135,6 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
 
 KenPathPlanner::~KenPathPlanner() {}
 
-void KenPathPlanner::test_ik(void)
-{
-  std::vector<double> ik_test_pos(3, 0.0);
-  this->get_parameter("ik_test_pos_x", ik_test_pos[0]);
-  this->get_parameter("ik_test_pos_y", ik_test_pos[1]);
-  this->get_parameter("ik_test_pos_z", ik_test_pos[2]);
-
-  KenIK ik;
-  std::vector<double> ans = ik.calcPositionIK(Eigen::Vector3d(ik_test_pos.data()));
-  std::cout << "ik ans pos" << std::endl;
-  for (size_t i = 0; i < ans.size(); ++i) std::cout << ans[i] << std::endl;
-
-  std::vector<Eigen::Matrix4d> ik_Tbe_log = ik.getIKlogTbe();
-  geometry_msgs::msg::PoseArray ik_debug_pose_array;
-  ik_debug_pose_array.header.frame_id = base_frame_id_;
-  ik_debug_pose_array.header.stamp = rclcpp::Time(0);
-  for (size_t i = 0; i < ik_Tbe_log.size(); ++i) {
-    geometry_msgs::msg::Pose Tbepose;
-    Tbepose.position.x = ik_Tbe_log[i](0, 3);
-    Tbepose.position.y = ik_Tbe_log[i](1, 3);
-    Tbepose.position.z = ik_Tbe_log[i](2, 3);
-    Eigen::Quaterniond Tbe_q(ik_Tbe_log[i].block<3, 3>(0, 0));
-    Tbepose.orientation.x = Tbe_q.x();
-    Tbepose.orientation.y = Tbe_q.y();
-    Tbepose.orientation.z = Tbe_q.z();
-    Tbepose.orientation.w = Tbe_q.w();
-
-    ik_debug_pose_array.poses.push_back(Tbepose);
-  }
-  ik_debug_pose_pub_->publish(ik_debug_pose_array);
-}
-
 void KenPathPlanner::pushInterpolateTrajectoryPoints(
   trajectory_msgs::msg::JointTrajectory & jtm,
   const trajectory_msgs::msg::JointTrajectoryPoint start,
@@ -224,6 +190,7 @@ void KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajecto
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     start_point.positions.push_back(current_pos_[i]);
   }
+
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
   end_point.time_from_start.sec = (uint32_t)move_time_;
   end_point.time_from_start.nanosec =
@@ -248,6 +215,11 @@ void KenPathPlanner::makeMenTrajectory(
     start_point.positions.push_back(current_pos_[i]);
   }
 
+  trajectory_msgs::msg::JointTrajectoryPoint via_point;
+  via_point.time_from_start.sec = (uint32_t)move_time_ / 2;
+  via_point.time_from_start.nanosec =
+    (uint32_t)((move_time_ / 2 - via_point.time_from_start.sec) * 1e9);
+
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
   end_point.time_from_start.sec = (uint32_t)move_time_;
   end_point.time_from_start.nanosec =
@@ -255,10 +227,21 @@ void KenPathPlanner::makeMenTrajectory(
 
   Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
   KenIK ik;
-  std::vector<double> ik_ans = ik.calcPositionIK(target_pos);
-  std::cout << "ik ans pos" << std::endl;
-  for (size_t i = 0; i < ik_ans.size(); ++i) std::cout << ik_ans[i] << std::endl;
+  std::vector<double> ik_ans;
+  ik.calcPositionIK(target_pos, kamae_pos_, ik_ans);
 
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    end_point.positions.push_back(ik_ans[i]);
+  }
+
+  via_point.positions = end_point.positions;
+  via_point.positions[3] = 0.0;
+  via_point.positions[4] = 0.0;
+
+  pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
+  pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
+
+  // Publish IK calc log
   std::vector<Eigen::Matrix4d> ik_Tbe_log = ik.getIKlogTbe();
   geometry_msgs::msg::PoseArray ik_debug_pose_array;
   ik_debug_pose_array.header.frame_id = base_frame_id_;
@@ -277,12 +260,6 @@ void KenPathPlanner::makeMenTrajectory(
     ik_debug_pose_array.poses.push_back(Tbepose);
   }
   ik_debug_pose_pub_->publish(ik_debug_pose_array);
-
-  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
-    end_point.positions.push_back(ik_ans[i]);
-  }
-
-  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
 }
 
 void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
