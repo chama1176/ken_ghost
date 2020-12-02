@@ -146,7 +146,7 @@ KenMissionManager::KenMissionManager()
 
   try {
     s2b_transform_ = tf2_buffer_.lookupTransform(
-      "base_link", "world", tf2::TimePoint(), tf2::durationFromSec(1.0));
+      "base_link", "camera_color_optical_frame", tf2::TimePoint(), tf2::durationFromSec(2.0));
     RCLCPP_INFO(this->get_logger(), "Got transform");
   } catch (const tf2::TransformException & e) {
     std::cerr << e.what() << '\n';
