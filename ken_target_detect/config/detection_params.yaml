@@ -9,7 +9,7 @@ vision_target_detector:
     green_h_range_max: 120
     green_h_range_min: 50
     s_range_max: 255
-    s_range_min: 50
+    s_range_min: 100
     v_range_max: 255
     v_range_min: 50
     area_size_thres: 900

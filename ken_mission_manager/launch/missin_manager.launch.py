@@ -13,14 +13,14 @@ def generate_launch_description():
     )
 
     config = os.path.join(
-        get_package_share_directory('ken_path_planner'),
+        get_package_share_directory('ken_mission_manager'),
         'config',
         'ps4_auto_config.yaml')
 
-    auto_path_teleop_node = Node(
-        package='ken_path_planner',
-        node_executable='ken_path_planner',
+    mission_manager_node = Node(
+        package='ken_mission_manager',
+        node_executable='ken_mission_manager',
         output='screen',
         parameters=[config])
 
-    return LaunchDescription([joy_node, auto_path_teleop_node])
+    return LaunchDescription([joy_node, mission_manager_node])

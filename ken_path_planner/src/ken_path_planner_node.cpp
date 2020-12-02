@@ -11,6 +11,7 @@
 #include <eigen3/Eigen/Dense>
 
 #include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "rclcpp/clock.hpp"
@@ -21,6 +22,8 @@
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 
+#include "ken_msgs/msg/mission_target_array.hpp"
+#include "ken_msgs/msg/mission_trajectory.hpp"
 #include "ken_path_planner/ken_fk.hpp"
 #include "ken_path_planner/ken_ik.hpp"
 
@@ -41,14 +44,17 @@ public:
 private:
   void makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
   void makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  void makeMenTrajectory(
+    trajectory_msgs::msg::JointTrajectory & jtm, const geometry_msgs::msg::Pose pose);
 
   void pushInterpolateTrajectoryPoints(
     trajectory_msgs::msg::JointTrajectory & jtm,
     const trajectory_msgs::msg::JointTrajectoryPoint start,
     const trajectory_msgs::msg::JointTrajectoryPoint end, int interpolate_num);
 
-  void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg);
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
+  void mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg);
+
   void test_ik(void);
 
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
@@ -58,12 +64,11 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_y_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_z_debug_pub_;
 
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
+  rclcpp::Publisher<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_pub_;
+
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
 
-  int64_t enable_button_;
-  int64_t move_home_button_;
-  int64_t move_kamae_button_;
+  rclcpp::Subscription<ken_msgs::msg::MissionTargetArray>::SharedPtr mission_target_sub_;
 
   int64_t joint_num_;
   double move_time_;
@@ -80,14 +85,6 @@ private:
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("base_link")
 {
-  this->declare_parameter("enable_button", -1);
-  this->get_parameter("enable_button", enable_button_);
-
-  this->declare_parameter("move_home_button", -1);
-  this->get_parameter("move_home_button", move_home_button_);
-  this->declare_parameter("move_kamae_button", -1);
-  this->get_parameter("move_kamae_button", move_kamae_button_);
-
   this->declare_parameter("joint_num", -1);
   this->get_parameter("joint_num", joint_num_);
 
@@ -112,10 +109,6 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
     }
   }
 
-  RCLCPP_INFO(this->get_logger(), "Teleop enable button: %d", enable_button_);
-  RCLCPP_INFO(this->get_logger(), "Move home button: %d", move_home_button_);
-  RCLCPP_INFO(this->get_logger(), "Move kamae button: %d", move_kamae_button_);
-
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
   RCLCPP_INFO(this->get_logger(), "Joint num: %d", joint_num_);
 
@@ -130,10 +123,14 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   point_y_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_y", 1);
   point_z_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_z", 1);
 
-  joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
-    "joy", 1, std::bind(&KenPathPlanner::joy_callback, this, _1));
+  mission_trajectory_pub_ =
+    this->create_publisher<ken_msgs::msg::MissionTrajectory>("mission_trajectory", 1);
+
   joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
     "joint_states", 1, std::bind(&KenPathPlanner::joint_state_callback, this, _1));
+
+  mission_target_sub_ = this->create_subscription<ken_msgs::msg::MissionTargetArray>(
+    "mission_target", 1, std::bind(&KenPathPlanner::mission_target_callback, this, _1));
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -238,36 +235,54 @@ void KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajecto
   pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
 }
 
-void KenPathPlanner::joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
+void KenPathPlanner::makeMenTrajectory(
+  trajectory_msgs::msg::JointTrajectory & jtm, const geometry_msgs::msg::Pose pose)
 {
-  if (
-    received_joint_state_msg_ && enable_button_ >= 0 &&
-    static_cast<int>(msg->buttons.size()) > enable_button_ && msg->buttons[enable_button_]) {
-    if (
-      move_home_button_ >= 0 && static_cast<int>(msg->buttons.size()) > move_home_button_ &&
-      msg->buttons[move_home_button_]) {
-      auto message = trajectory_msgs::msg::JointTrajectory();
-      makeMoveHomeTrajectory(message);
-      cmd_pub_->publish(message);
-    }
-    if (
-      move_kamae_button_ >= 0 && static_cast<int>(msg->buttons.size()) > move_kamae_button_ &&
-      msg->buttons[move_kamae_button_]) {
-      auto message = trajectory_msgs::msg::JointTrajectory();
-      makeMoveKamaeTrajectory(message);
-      cmd_pub_->publish(message);
-    }
+  jtm.header.stamp = rclcpp::Time(0);
+  jtm.joint_names = name_vec_;
 
-    sent_disable_msg_ = false;
-  } else {
-    if (!sent_disable_msg_) {
-      test_ik();
-      // auto message = trajectory_msgs::msg::JointTrajectory();
-      // message.joint_names = name_vec_;
-      // cmd_pub_->publish(message);
-      sent_disable_msg_ = true;
-    }
+  trajectory_msgs::msg::JointTrajectoryPoint start_point;
+  start_point.time_from_start.sec = 0;
+  start_point.time_from_start.nanosec = 0;
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    start_point.positions.push_back(current_pos_[i]);
   }
+
+  trajectory_msgs::msg::JointTrajectoryPoint end_point;
+  end_point.time_from_start.sec = (uint32_t)move_time_;
+  end_point.time_from_start.nanosec =
+    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+
+  Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+  KenIK ik;
+  std::vector<double> ik_ans = ik.calcPositionIK(target_pos);
+  std::cout << "ik ans pos" << std::endl;
+  for (size_t i = 0; i < ik_ans.size(); ++i) std::cout << ik_ans[i] << std::endl;
+
+  std::vector<Eigen::Matrix4d> ik_Tbe_log = ik.getIKlogTbe();
+  geometry_msgs::msg::PoseArray ik_debug_pose_array;
+  ik_debug_pose_array.header.frame_id = base_frame_id_;
+  ik_debug_pose_array.header.stamp = rclcpp::Time(0);
+  for (size_t i = 0; i < ik_Tbe_log.size(); ++i) {
+    geometry_msgs::msg::Pose Tbepose;
+    Tbepose.position.x = ik_Tbe_log[i](0, 3);
+    Tbepose.position.y = ik_Tbe_log[i](1, 3);
+    Tbepose.position.z = ik_Tbe_log[i](2, 3);
+    Eigen::Quaterniond Tbe_q(ik_Tbe_log[i].block<3, 3>(0, 0));
+    Tbepose.orientation.x = Tbe_q.x();
+    Tbepose.orientation.y = Tbe_q.y();
+    Tbepose.orientation.z = Tbe_q.z();
+    Tbepose.orientation.w = Tbe_q.w();
+
+    ik_debug_pose_array.poses.push_back(Tbepose);
+  }
+  ik_debug_pose_pub_->publish(ik_debug_pose_array);
+
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    end_point.positions.push_back(ik_ans[i]);
+  }
+
+  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
 }
 
 void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
@@ -332,6 +347,38 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
   point_z.point.y = es.eigenvectors().col(2)(1) * es.eigenvalues()(2) + Tbe(1, 3);
   point_z.point.z = es.eigenvectors().col(2)(2) * es.eigenvalues()(2) + Tbe(2, 3);
   point_z_debug_pub_->publish(point_z);
+}
+
+void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg)
+{
+  ken_msgs::msg::MissionTrajectory mtm;
+  mtm.header.frame_id = base_frame_id_;
+  mtm.header.stamp = rclcpp::Time(0);
+  mtm.plan_result = true;
+  mtm.type = msg->type;
+
+  for (int i = (int)msg->type.size() - 1; i >= 0; --i) {
+    trajectory_msgs::msg::JointTrajectory jt;
+    std::string jt_name;
+    if (msg->type[i] == msg->HOME) {
+      makeMoveHomeTrajectory(jt);
+      jt_name = "home";
+    } else if (msg->type[i] == msg->KAMAE) {
+      makeMoveKamaeTrajectory(jt);
+      jt_name = "kamae";
+    } else if (msg->type[i] == msg->MEN) {
+      makeMenTrajectory(jt, msg->poses[i]);
+      jt_name = "men";
+    } else {
+      mtm.plan_result = false;
+      break;
+    }
+
+    mtm.trajectories.push_back(jt);
+    mtm.type_names.push_back(jt_name);
+  }
+
+  mission_trajectory_pub_->publish(mtm);
 }
 
 int main(int argc, char * argv[])
