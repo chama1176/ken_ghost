@@ -58,7 +58,7 @@ private:
     return true;
   }
 
-  rclcpp::Clock ros_clock_;
+  rclcpp::Clock::SharedPtr clock_;
   tf2_ros::Buffer tf2_buffer_;
   tf2_ros::TransformListener tf2_listener_;
   geometry_msgs::msg::TransformStamped s2b_transform_;
@@ -108,8 +108,8 @@ private:
 
 KenMissionManager::KenMissionManager()
 : Node("ken_mission_manager"),
-  ros_clock_(RCL_ROS_TIME),
-  tf2_buffer_(std::make_shared<rclcpp::Clock>(ros_clock_)),
+  clock_(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)),
+  tf2_buffer_(clock_),
   tf2_listener_(tf2_buffer_)
 {
   this->declare_parameter("enable_button", -1);
@@ -145,7 +145,9 @@ KenMissionManager::KenMissionManager()
     "red_target", 1, std::bind(&KenMissionManager::redTargetCallback, this, _1));
 
   try {
-    s2b_transform_ = tf2_buffer_.lookupTransform("base_link", "world", tf2::TimePoint(100ms));
+    s2b_transform_ = tf2_buffer_.lookupTransform(
+      "base_link", "world", tf2::TimePoint(), tf2::durationFromSec(1.0));
+    RCLCPP_INFO(this->get_logger(), "Got transform");
   } catch (const tf2::TransformException & e) {
     std::cerr << e.what() << '\n';
   }
