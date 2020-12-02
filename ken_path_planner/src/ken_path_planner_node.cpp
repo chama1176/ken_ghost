@@ -52,6 +52,8 @@ private:
     const trajectory_msgs::msg::JointTrajectoryPoint start,
     const trajectory_msgs::msg::JointTrajectoryPoint end, int interpolate_num);
 
+  void publishIKlog(const KenIK & ik);
+
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
   void mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg);
 
@@ -78,7 +80,6 @@ private:
   std::vector<double> kamae_pos_;
 
   bool received_joint_state_msg_;
-  bool sent_disable_msg_;
 };
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("base_link")
@@ -110,7 +111,6 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
   RCLCPP_INFO(this->get_logger(), "Joint num: %d", joint_num_);
 
-  sent_disable_msg_ = false;
   received_joint_state_msg_ = false;
 
   cmd_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
@@ -228,8 +228,9 @@ void KenPathPlanner::makeMenTrajectory(
   Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
   KenIK ik;
   std::vector<double> ik_ans;
-  ik.calcPositionIK(target_pos, kamae_pos_, ik_ans);
-
+  bool is_succeed_ik = ik.calcPositionIK(target_pos, kamae_pos_, ik_ans);
+  publishIKlog(ik);
+  // TODO: write when ik solver is failed
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     end_point.positions.push_back(ik_ans[i]);
   }
@@ -240,9 +241,13 @@ void KenPathPlanner::makeMenTrajectory(
 
   pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
   pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
+}
 
-  // Publish IK calc log
+void KenPathPlanner::publishIKlog(const KenIK & ik)
+{
+  // Publish IK calculation log
   std::vector<Eigen::Matrix4d> ik_Tbe_log = ik.getIKlogTbe();
+
   geometry_msgs::msg::PoseArray ik_debug_pose_array;
   ik_debug_pose_array.header.frame_id = base_frame_id_;
   ik_debug_pose_array.header.stamp = rclcpp::Time(0);
@@ -344,6 +349,7 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
       makeMoveKamaeTrajectory(jt);
       jt_name = "kamae";
     } else if (msg->type[i] == msg->MEN) {
+      // TODO: IKが失敗したときにもfalseを返すようにする
       makeMenTrajectory(jt, msg->poses[i]);
       jt_name = "men";
     } else {

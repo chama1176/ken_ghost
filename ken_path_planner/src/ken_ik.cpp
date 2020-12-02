@@ -53,7 +53,7 @@ bool KenIK::calcPositionIK(
   return false;
 }
 
-std::vector<Matrix4d> KenIK::getIKlogTbe(void) { return calc_Tbe_log_; }
+std::vector<Matrix4d> KenIK::getIKlogTbe(void) const { return calc_Tbe_log_; }
 
 void KenIK::resetJointLimit(std::vector<double> & joint_angle)
 {
