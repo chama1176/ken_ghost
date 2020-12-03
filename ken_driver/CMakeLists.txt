@@ -22,6 +22,10 @@ find_package(controller_manager REQUIRED)
 find_package(dynamixel_sdk REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 
 include_directories(include)
 
@@ -37,6 +41,21 @@ ament_target_dependencies(ken_controller
 )
 
 install(TARGETS ken_controller
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+add_executable(ken_goal_checker
+  src/ken_goal_checker_node.cpp)
+
+ament_target_dependencies(ken_goal_checker
+    rclcpp
+    std_msgs
+    sensor_msgs
+    geometry_msgs
+    trajectory_msgs
+)
+
+install(TARGETS ken_goal_checker
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
