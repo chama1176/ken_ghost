@@ -51,7 +51,7 @@ KenGoalChecker::KenGoalChecker() : Node("ken_goal_checker_node")
     "ken_joint_trajectory_controller/joint_trajectory", 1,
     std::bind(&KenGoalChecker::jointTrajectoryCallback, this, _1));
 
-  goal_thes_ = 1.0 * M_PI / 180.0;
+  goal_thes_ = 5.0 * M_PI / 180.0;
   last_joint_trajectory_ = trajectory_msgs::msg::JointTrajectory();
 
   std::cout << "Finish Initialization" << std::endl;

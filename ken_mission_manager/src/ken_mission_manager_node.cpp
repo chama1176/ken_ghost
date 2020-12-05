@@ -228,7 +228,6 @@ void KenMissionManager::updateStatus(void)
         RCLCPP_INFO(this->get_logger(), "Auto");
         is_goal_ = true;
       }
-
     } break;
 
     case MissionState::DURING_EXECUTION: {
@@ -310,6 +309,7 @@ void KenMissionManager::executeMission(void)
 
     case MissionState::AUTO_DURING_EXECUTION: {
       if (
+        // TODO:should pub lish trajectory multiple time
         is_goal_ && recieved_mission_trajectory_.plan_result &&
         !recieved_mission_trajectory_.trajectories.empty()) {
         auto cmd_string = std_msgs::msg::String();
