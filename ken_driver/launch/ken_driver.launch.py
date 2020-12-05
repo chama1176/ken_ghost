@@ -34,4 +34,10 @@ def generate_launch_description():
                            #        parameters=[{'controller_name': 'ken_joint_trajectory_controller'}])
                            parameters=[config])
 
-    return LaunchDescription([rsp_node, ken_driver_node])
+    goal_checker_node = Node(
+        package='ken_driver',
+        node_executable='ken_goal_checker',
+        output='both'
+    )
+
+    return LaunchDescription([rsp_node, ken_driver_node, goal_checker_node])
