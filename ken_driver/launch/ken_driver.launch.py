@@ -34,10 +34,14 @@ def generate_launch_description():
                            #        parameters=[{'controller_name': 'ken_joint_trajectory_controller'}])
                            parameters=[config])
 
+    sound_driver_node = Node(package='ken_motion_sound_py',
+                             node_executable='listener',
+                             output='both')
+
     goal_checker_node = Node(
         package='ken_driver',
         node_executable='ken_goal_checker',
         output='both'
     )
 
-    return LaunchDescription([rsp_node, ken_driver_node, goal_checker_node])
+    return LaunchDescription([rsp_node, ken_driver_node, sound_driver_node, goal_checker_node])
