@@ -36,7 +36,7 @@ install(TARGETS ken_motion_sound
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch config
+install(DIRECTORY launch sounds
   DESTINATION share/${PROJECT_NAME}
 )
 
