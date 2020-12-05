@@ -34,6 +34,8 @@ find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(ken_msgs REQUIRED)
 
+include_directories(include)
+
 add_executable(ken_mission_manager
   src/ken_mission_manager_node.cpp)
 
@@ -42,6 +44,9 @@ ament_target_dependencies(ken_mission_manager rclcpp std_msgs sensor_msgs geomet
 install(TARGETS
   ken_mission_manager
   DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION include)
 
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
