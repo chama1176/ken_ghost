@@ -62,7 +62,7 @@ install(TARGETS ken_goal_checker
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION include)
 
-install(DIRECTORY launch config
+install(DIRECTORY launch config sounds
   DESTINATION share/${PROJECT_NAME}
 )
 
