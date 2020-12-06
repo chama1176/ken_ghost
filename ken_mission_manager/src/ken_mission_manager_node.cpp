@@ -42,6 +42,12 @@ KenMissionManager::KenMissionManager()
   this->get_parameter("move_home_button", move_home_button_);
   this->declare_parameter("move_kamae_button", -1);
   this->get_parameter("move_kamae_button", move_kamae_button_);
+
+  this->declare_parameter("men_button", -1);
+  this->get_parameter("men_button", men_button_);
+  this->declare_parameter("dou_button", -1);
+  this->get_parameter("dou_button", dou_button_);
+
   this->declare_parameter("auto_button", -1);
   this->get_parameter("auto_button", auto_button_);
 
@@ -51,6 +57,10 @@ KenMissionManager::KenMissionManager()
   RCLCPP_INFO(this->get_logger(), "Teleop enable button: %d", enable_button_);
   RCLCPP_INFO(this->get_logger(), "Move home button: %d", move_home_button_);
   RCLCPP_INFO(this->get_logger(), "Move kamae button: %d", move_kamae_button_);
+
+  RCLCPP_INFO(this->get_logger(), "Men button: %d", men_button_);
+  RCLCPP_INFO(this->get_logger(), "Dou button: %d", dou_button_);
+  RCLCPP_INFO(this->get_logger(), "Auto button: %d", auto_button_);
 
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
 
@@ -101,6 +111,12 @@ void KenMissionManager::joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
 
   if (is_in_range(move_kamae_button_, 0, msg_buttons_size))
     is_move_kamae_button_pushed_ = msg->buttons[move_kamae_button_];
+
+  if (is_in_range(men_button_, 0, msg_buttons_size))
+    is_men_button_pushed_ = msg->buttons[men_button_];
+
+  if (is_in_range(dou_button_, 0, msg_buttons_size))
+    is_dou_button_pushed_ = msg->buttons[dou_button_];
 
   if (is_in_range(auto_button_, 0, msg_buttons_size))
     is_auto_button_pushed_ = msg->buttons[auto_button_];
@@ -180,19 +196,39 @@ void KenMissionManager::publishHoldMissionTrajectory(void)
 void KenMissionManager::updateStatusWaiting(void)
 {
   if (is_move_home_button_pushed_) {
+    // TODO: きれいにしたい
     recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
     mta.header.stamp = rclcpp::Time(0);
     mta.type.push_back(mta.HOME);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     mission_target_pub_->publish(mta);
-
     current_state_ = MissionState::DURING_EXECUTION;
     RCLCPP_INFO(this->get_logger(), "During execution");
   } else if (is_move_kamae_button_pushed_) {
     recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
     mta.header.stamp = rclcpp::Time(0);
+    mta.type.push_back(mta.KAMAE);
+    mta.poses.push_back(geometry_msgs::msg::Pose());
+    mission_target_pub_->publish(mta);
+    current_state_ = MissionState::DURING_EXECUTION;
+    RCLCPP_INFO(this->get_logger(), "During execution");
+  } else if (is_men_button_pushed_) {
+    recieved_mission_trajectory_.plan_result = false;
+    ken_msgs::msg::MissionTargetArray mta;
+    mta.header.stamp = rclcpp::Time(0);
+    mta.type.push_back(mta.KAMAE);
+    mta.poses.push_back(geometry_msgs::msg::Pose());
+    if (!red_target_.poses.empty()) {
+      geometry_msgs::msg::PoseStamped target_transformed;
+      geometry_msgs::msg::PoseStamped target_pose;
+      target_pose.pose = red_target_.poses.front();
+      target_pose.header = red_target_.header;
+      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+      mta.type.push_back(mta.MEN);
+      mta.poses.push_back(target_transformed.pose);
+    }
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     mission_target_pub_->publish(mta);
@@ -211,7 +247,6 @@ void KenMissionManager::executeMission(void)
   switch (current_state_) {
     case MissionState::WAITING: {
       // do nothing
-      RCLCPP_INFO(this->get_logger(), "Waiting");
       if (
         recieved_mission_trajectory_.plan_result &&
         !recieved_mission_trajectory_.trajectories.empty()) {

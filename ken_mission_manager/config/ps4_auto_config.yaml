@@ -4,6 +4,9 @@ ken_mission_manager:
     enable_button: 4  # L1 shoulder button
     move_home_button: 3  # square button
     move_kamae_button: 2  # triangle button
+    men_button: 6  # L2 button
+    dou_button: 7  # R2 button
+
     auto_button: 1  # circle button
 
     move_time: 0.5

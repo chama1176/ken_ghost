@@ -97,11 +97,15 @@ private:
   int64_t enable_button_;
   int64_t move_home_button_;
   int64_t move_kamae_button_;
+  int64_t men_button_;
+  int64_t dou_button_;
   int64_t auto_button_;
 
   bool is_enable_button_pushed_;
   bool is_move_home_button_pushed_;
   bool is_move_kamae_button_pushed_;
+  bool is_men_button_pushed_;
+  bool is_dou_button_pushed_;
   bool is_auto_button_pushed_;
 
   bool is_target_sent_;
