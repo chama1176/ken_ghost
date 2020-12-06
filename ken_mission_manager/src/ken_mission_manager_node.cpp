@@ -90,8 +90,7 @@ KenMissionManager::KenMissionManager()
 
   timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timerCallback, this));
 
-  current_state_ = MissionState::WAITING;
-  RCLCPP_INFO(this->get_logger(), "Waiting");
+  setMissionState(MissionState::WAITING);
   publishHoldMissionTrajectory();
 
   std::cout << "Finish Initialize Mission Manager" << std::endl;
@@ -144,6 +143,13 @@ void KenMissionManager::goalStatusCallback(const std_msgs::msg::Bool::SharedPtr 
   is_goal_ = msg->data;
 }
 
+void KenMissionManager::setMissionState(const MissionState & st)
+{
+  current_state_ = st;
+  RCLCPP_INFO(this->get_logger(), "%s ", enum_mission_state_map.at(st).c_str());
+  std::cout << enum_mission_state_map.at(st).c_str() << std::endl;
+}
+
 void KenMissionManager::updateStatus(void)
 {
   switch (current_state_) {
@@ -153,8 +159,7 @@ void KenMissionManager::updateStatus(void)
 
     case MissionState::DURING_EXECUTION: {
       if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
-        RCLCPP_INFO(this->get_logger(), "Waiting");
-        current_state_ = MissionState::WAITING;
+        setMissionState(MissionState::WAITING);
         publishHoldMissionTrajectory();
       }
     } break;
@@ -164,15 +169,13 @@ void KenMissionManager::updateStatus(void)
 
     case MissionState::AUTO_PLANNING: {
       if (recieved_mission_trajectory_.plan_result) {
-        RCLCPP_INFO(this->get_logger(), "Auto exe");
-        current_state_ = MissionState::AUTO_DURING_EXECUTION;
+        setMissionState(MissionState::AUTO_DURING_EXECUTION);
       }
     } break;
 
     case MissionState::AUTO_DURING_EXECUTION: {
       if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
-        RCLCPP_INFO(this->get_logger(), "Waiting");
-        current_state_ = MissionState::WAITING;
+        setMissionState(MissionState::WAITING);
         publishHoldMissionTrajectory();
       }
     } break;
@@ -203,8 +206,7 @@ void KenMissionManager::updateStatusWaiting(void)
     mta.type.push_back(mta.HOME);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     mission_target_pub_->publish(mta);
-    current_state_ = MissionState::DURING_EXECUTION;
-    RCLCPP_INFO(this->get_logger(), "During execution");
+    setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_move_kamae_button_pushed_) {
     recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
@@ -212,8 +214,7 @@ void KenMissionManager::updateStatusWaiting(void)
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     mission_target_pub_->publish(mta);
-    current_state_ = MissionState::DURING_EXECUTION;
-    RCLCPP_INFO(this->get_logger(), "During execution");
+    setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_men_button_pushed_) {
     recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
@@ -232,13 +233,10 @@ void KenMissionManager::updateStatusWaiting(void)
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     mission_target_pub_->publish(mta);
-
-    current_state_ = MissionState::DURING_EXECUTION;
-    RCLCPP_INFO(this->get_logger(), "During execution");
+    setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_auto_button_pushed_) {
     recieved_mission_trajectory_.plan_result = false;
-    current_state_ = MissionState::AUTO_PLANNING;
-    RCLCPP_INFO(this->get_logger(), "Auto");
+    setMissionState(MissionState::AUTO_PLANNING);
   }
 }
 

@@ -3,6 +3,7 @@
 
 #include <cinttypes>
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -44,11 +45,29 @@ public:
   ~KenMissionManager();
 
 private:
+  enum MissionState {
+    WAITING,
+    DURING_EXECUTION,
+    AUTO_WAITING,
+    AUTO_PLANNING,
+    AUTO_DURING_EXECUTION,
+    TORQUE_DISABLED
+  };
+  const std::map<MissionState, std::string> enum_mission_state_map{
+    {WAITING, "WAITING"},
+    {DURING_EXECUTION, "DURING_EXECUTION"},
+    {AUTO_WAITING, "AUTO_WAITING"},
+    {AUTO_PLANNING, "AUTO_PLANNING"},
+    {AUTO_DURING_EXECUTION, "AUTO_DURING_EXECUTION"},
+    {TORQUE_DISABLED, "TORQUE_DISABLED"}};
+
   void joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg);
   void mission_trajectory_callback(const ken_msgs::msg::MissionTrajectory::SharedPtr msg);
   void timerCallback(void);
   void redTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
   void goalStatusCallback(const std_msgs::msg::Bool::SharedPtr msg);
+
+  void setMissionState(const MissionState & st);
 
   void updateStatus(void);
   void executeMission(void);
@@ -79,15 +98,6 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr red_target_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr goal_status_sub_;
   rclcpp::Subscription<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_sub_;
-
-  enum MissionState {
-    WAITING,
-    DURING_EXECUTION,
-    AUTO_WAITING,
-    AUTO_PLANNING,
-    AUTO_DURING_EXECUTION,
-    TORQUE_DISABLED
-  };
 
   MissionState current_state_;
   ken_msgs::msg::MissionTrajectory recieved_mission_trajectory_;
