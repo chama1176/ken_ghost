@@ -84,7 +84,7 @@ KenMissionManager::KenMissionManager()
   RCLCPP_INFO(this->get_logger(), "Waiting");
   publishHoldMissionTrajectory();
 
-  std::cout << "Finish Initialization" << std::endl;
+  std::cout << "Finish Initialize Mission Manager" << std::endl;
 }
 
 KenMissionManager::~KenMissionManager() {}

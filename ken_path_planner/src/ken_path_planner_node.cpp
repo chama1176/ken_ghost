@@ -165,8 +165,7 @@ bool KenPathPlanner::makeCurrentPosTrajectory(trajectory_msgs::msg::JointTraject
   jtm.joint_names = name_vec_;
 
   trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start.sec = 0;
-  start_point.time_from_start.nanosec = 0;
+  start_point.time_from_start = second2duration(0.0);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     start_point.positions.push_back(current_pos_[i]);
   }
@@ -181,15 +180,12 @@ bool KenPathPlanner::makeMoveHomeTrajectory(
   jtm.joint_names = name_vec_;
 
   trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start.sec = 0;
-  start_point.time_from_start.nanosec = 0;
+  start_point.time_from_start = second2duration(0.0);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     start_point.positions.push_back(current_pos[i]);
   }
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start.sec = (uint32_t)move_time_;
-  end_point.time_from_start.nanosec =
-    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+  end_point.time_from_start = second2duration(move_time_);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     end_point.positions.push_back(0.0);
   }
@@ -206,16 +202,13 @@ bool KenPathPlanner::makeMoveKamaeTrajectory(
   jtm.joint_names = name_vec_;
 
   trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start.sec = 0;
-  start_point.time_from_start.nanosec = 0;
+  start_point.time_from_start = second2duration(0.0);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     start_point.positions.push_back(current_pos[i]);
   }
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start.sec = (uint32_t)move_time_;
-  end_point.time_from_start.nanosec =
-    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+  end_point.time_from_start = second2duration(move_time_);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     end_point.positions.push_back(kamae_pos_[i]);
   }
@@ -231,16 +224,13 @@ bool KenPathPlanner::makeMenAfterTrajectory(trajectory_msgs::msg::JointTrajector
   jtm.joint_names = name_vec_;
 
   trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start.sec = 0;
-  start_point.time_from_start.nanosec = 0;
+  start_point.time_from_start = second2duration(0.0);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     start_point.positions.push_back(current_pos_[i]);
   }
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start.sec = (uint32_t)move_time_;
-  end_point.time_from_start.nanosec =
-    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+  end_point.time_from_start = second2duration(move_time_);
   end_point.positions = start_point.positions;
   end_point.positions[3] = 0.0;
   end_point.positions[4] = 0.0;
@@ -257,22 +247,17 @@ bool KenPathPlanner::makeMenTrajectory(
   jtm.joint_names = name_vec_;
 
   trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start.sec = 0;
-  start_point.time_from_start.nanosec = 0;
+  start_point.time_from_start = second2duration(0.0);
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
     start_point.positions.push_back(current_pos_[i]);
   }
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point;
   // TODO: 関数化してなんとかする
-  via_point.time_from_start.sec = (uint32_t)move_time_ / 2;
-  via_point.time_from_start.nanosec =
-    (uint32_t)((move_time_ / 2 - via_point.time_from_start.sec) * 1e9);
+  via_point.time_from_start = second2duration(move_time_ / 2);
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start.sec = (uint32_t)move_time_;
-  end_point.time_from_start.nanosec =
-    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+  end_point.time_from_start = second2duration(move_time_);
 
   Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
 
@@ -294,9 +279,7 @@ bool KenPathPlanner::makeMenTrajectory(
     trajectory_msgs::msg::JointTrajectoryPoint back_point;
     back_point = end_point;
     back_point.positions = via_point.positions;
-    back_point.time_from_start.sec = (uint32_t)move_time_ * 3 / 2;
-    back_point.time_from_start.nanosec =
-      (uint32_t)((move_time_ * 3 / 2 - back_point.time_from_start.sec) * 1e9);
+    back_point.time_from_start = second2duration(move_time_ * 3 / 2);
     pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
 
   } else {
