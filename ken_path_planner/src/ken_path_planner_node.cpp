@@ -42,9 +42,10 @@ public:
   ~KenPathPlanner();
 
 private:
-  void makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
-  void makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
-  void makeMenTrajectory(
+  bool makeCurrentPosTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  bool makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  bool makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  bool makeMenTrajectory(
     trajectory_msgs::msg::JointTrajectory & jtm, const geometry_msgs::msg::Pose pose);
 
   void pushInterpolateTrajectoryPoints(
@@ -60,9 +61,6 @@ private:
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr fk_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ik_debug_pose_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_x_debug_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_y_debug_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_z_debug_pub_;
 
   rclcpp::Publisher<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_pub_;
 
@@ -78,8 +76,6 @@ private:
   std::vector<std::string> name_vec_;
   std::vector<double> current_pos_;
   std::vector<double> kamae_pos_;
-
-  bool received_joint_state_msg_;
 };
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("base_link")
@@ -111,15 +107,9 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
   RCLCPP_INFO(this->get_logger(), "Joint num: %d", joint_num_);
 
-  received_joint_state_msg_ = false;
-
   cmd_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "ken_joint_trajectory_controller/joint_trajectory", 1);
-  fk_debug_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("debug/fk_pose", 1);
   ik_debug_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("debug/ik_pose", 1);
-  point_x_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_x", 1);
-  point_y_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_y", 1);
-  point_z_debug_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("debug/point_z", 1);
 
   mission_trajectory_pub_ =
     this->create_publisher<ken_msgs::msg::MissionTrajectory>("mission_trajectory", 1);
@@ -157,7 +147,22 @@ void KenPathPlanner::pushInterpolateTrajectoryPoints(
   jtm.points.push_back(end);
 }
 
-void KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
+bool KenPathPlanner::makeCurrentPosTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
+{
+  jtm.header.stamp = rclcpp::Time(0);
+  jtm.joint_names = name_vec_;
+
+  trajectory_msgs::msg::JointTrajectoryPoint start_point;
+  start_point.time_from_start.sec = 0;
+  start_point.time_from_start.nanosec = 0;
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    start_point.positions.push_back(current_pos_[i]);
+  }
+  jtm.points.push_back(start_point);
+  return true;
+}
+
+bool KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
 {
   jtm.header.stamp = rclcpp::Time(0);
   jtm.joint_names = name_vec_;
@@ -177,9 +182,11 @@ void KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajector
   }
 
   pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
+
+  return true;
 }
 
-void KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
+bool KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
 {
   jtm.header.stamp = rclcpp::Time(0);
   jtm.joint_names = name_vec_;
@@ -200,9 +207,11 @@ void KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajecto
   }
 
   pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
+
+  return true;
 }
 
-void KenPathPlanner::makeMenTrajectory(
+bool KenPathPlanner::makeMenTrajectory(
   trajectory_msgs::msg::JointTrajectory & jtm, const geometry_msgs::msg::Pose pose)
 {
   jtm.header.stamp = rclcpp::Time(0);
@@ -226,21 +235,26 @@ void KenPathPlanner::makeMenTrajectory(
     (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
 
   Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+
   KenIK ik;
   std::vector<double> ik_ans;
-  bool is_succeed_ik = ik.calcPositionIK(target_pos, kamae_pos_, ik_ans);
-  publishIKlog(ik);
-  // TODO: write when ik solver is failed
-  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
-    end_point.positions.push_back(ik_ans[i]);
+  if (ik.calcPositionIK(target_pos, kamae_pos_, ik_ans)) {
+    publishIKlog(ik);
+    for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+      end_point.positions.push_back(ik_ans[i]);
+    }
+
+    via_point.positions = end_point.positions;
+    via_point.positions[3] = 0.0;
+    via_point.positions[4] = 0.0;
+
+    pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
+    pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
+  } else {
+    return false;
   }
 
-  via_point.positions = end_point.positions;
-  via_point.positions[3] = 0.0;
-  via_point.positions[4] = 0.0;
-
-  pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
-  pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
+  return true;
 }
 
 void KenPathPlanner::publishIKlog(const KenIK & ik)
@@ -273,62 +287,7 @@ void KenPathPlanner::joint_state_callback(const sensor_msgs::msg::JointState::Sh
     for (size_t i = 0; i < (size_t)joint_num_; ++i) {
       current_pos_[i] = msg->position[i];
     }
-    received_joint_state_msg_ = true;
   }
-
-  // Code for checking forward kinematics
-
-  KenFK fk(current_pos_);
-  Eigen::Matrix4d Tbe = fk.computeTbe();
-
-  Eigen::Quaterniond Tbe_q(Tbe.block<3, 3>(0, 0));
-  geometry_msgs::msg::PoseStamped pose_pub;
-  pose_pub.header.frame_id = base_frame_id_;
-  pose_pub.header.stamp = rclcpp::Time(0);
-  pose_pub.pose.position.x = Tbe(0, 3);
-  pose_pub.pose.position.y = Tbe(1, 3);
-  pose_pub.pose.position.z = Tbe(2, 3);
-  pose_pub.pose.orientation.x = Tbe_q.x();
-  pose_pub.pose.orientation.y = Tbe_q.y();
-  pose_pub.pose.orientation.z = Tbe_q.z();
-  pose_pub.pose.orientation.w = Tbe_q.w();
-
-  fk_debug_pub_->publish(pose_pub);
-
-  // Code for checking Jacobian
-  Eigen::MatrixXd Jv = fk.computeJv();
-  // std::cout << "Jv" << std::endl;
-  // std::cout << Jv << std::endl;
-  Eigen::MatrixXd A = Jv * Jv.transpose();
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> es(A.block<3, 3>(0, 0));
-  // if (es.info() == Eigen::Success) {
-  //   std::cout << "A es" << std::endl;
-  //   std::cout << es.eigenvalues() << std::endl;
-  //   std::cout << es.eigenvectors() << std::endl;
-  // }
-  geometry_msgs::msg::PointStamped point_x;
-  point_x.header.frame_id = base_frame_id_;
-  point_x.header.stamp = rclcpp::Time(0);
-  point_x.point.x = es.eigenvectors().col(0)(0) * es.eigenvalues()(0) + Tbe(0, 3);
-  point_x.point.y = es.eigenvectors().col(0)(1) * es.eigenvalues()(0) + Tbe(1, 3);
-  point_x.point.z = es.eigenvectors().col(0)(2) * es.eigenvalues()(0) + Tbe(2, 3);
-  point_x_debug_pub_->publish(point_x);
-
-  geometry_msgs::msg::PointStamped point_y;
-  point_y.header.frame_id = base_frame_id_;
-  point_y.header.stamp = rclcpp::Time(0);
-  point_y.point.x = es.eigenvectors().col(1)(0) * es.eigenvalues()(1) + Tbe(0, 3);
-  point_y.point.y = es.eigenvectors().col(1)(1) * es.eigenvalues()(1) + Tbe(1, 3);
-  point_y.point.z = es.eigenvectors().col(1)(2) * es.eigenvalues()(1) + Tbe(2, 3);
-  point_y_debug_pub_->publish(point_y);
-
-  geometry_msgs::msg::PointStamped point_z;
-  point_z.header.frame_id = base_frame_id_;
-  point_z.header.stamp = rclcpp::Time(0);
-  point_z.point.x = es.eigenvectors().col(2)(0) * es.eigenvalues()(2) + Tbe(0, 3);
-  point_z.point.y = es.eigenvectors().col(2)(1) * es.eigenvalues()(2) + Tbe(1, 3);
-  point_z.point.z = es.eigenvectors().col(2)(2) * es.eigenvalues()(2) + Tbe(2, 3);
-  point_z_debug_pub_->publish(point_z);
 }
 
 void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg)
@@ -342,15 +301,17 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
   for (int i = (int)msg->type.size() - 1; i >= 0; --i) {
     trajectory_msgs::msg::JointTrajectory jt;
     std::string jt_name;
-    if (msg->type[i] == msg->HOME) {
-      makeMoveHomeTrajectory(jt);
+    if (msg->type[i] == msg->HOLD) {
+      mtm.plan_result &= makeCurrentPosTrajectory(jt);
+      jt_name = "hold";
+    } else if (msg->type[i] == msg->HOME) {
+      mtm.plan_result &= makeMoveHomeTrajectory(jt);
       jt_name = "home";
     } else if (msg->type[i] == msg->KAMAE) {
-      makeMoveKamaeTrajectory(jt);
+      mtm.plan_result &= makeMoveKamaeTrajectory(jt);
       jt_name = "kamae";
     } else if (msg->type[i] == msg->MEN) {
-      // TODO: IKが失敗したときにもfalseを返すようにする
-      makeMenTrajectory(jt, msg->poses[i]);
+      mtm.plan_result &= makeMenTrajectory(jt, msg->poses[i]);
       jt_name = "men";
     } else {
       mtm.plan_result = false;

@@ -1,5 +1,6 @@
 byte HOME = 0
 byte KAMAE = 1
+byte HOLD = 2
 
 byte MEN = 5
 byte DOU = 6

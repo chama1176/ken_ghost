@@ -81,7 +81,8 @@ KenMissionManager::KenMissionManager()
   timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timerCallback, this));
 
   current_state_ = MissionState::WAITING;
-  is_goal_ = true;
+  RCLCPP_INFO(this->get_logger(), "Waiting");
+  publishHoldMissionTrajectory();
 
   std::cout << "Finish Initialization" << std::endl;
 }
@@ -115,6 +116,7 @@ void KenMissionManager::timerCallback(void)
 {
   updateStatus();
   executeMission();
+  std::cout << "loop" << std::endl;
 }
 
 void KenMissionManager::redTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
@@ -138,6 +140,7 @@ void KenMissionManager::updateStatus(void)
       if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
         RCLCPP_INFO(this->get_logger(), "Waiting");
         current_state_ = MissionState::WAITING;
+        publishHoldMissionTrajectory();
       }
     } break;
 
@@ -155,6 +158,7 @@ void KenMissionManager::updateStatus(void)
       if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
         RCLCPP_INFO(this->get_logger(), "Waiting");
         current_state_ = MissionState::WAITING;
+        publishHoldMissionTrajectory();
       }
     } break;
 
@@ -164,6 +168,14 @@ void KenMissionManager::updateStatus(void)
     default:
       break;
   }
+}
+void KenMissionManager::publishHoldMissionTrajectory(void)
+{
+  ken_msgs::msg::MissionTargetArray mta;
+  mta.header.stamp = rclcpp::Time(0);
+  mta.type.push_back(mta.HOLD);
+  mta.poses.push_back(geometry_msgs::msg::Pose());
+  mission_target_pub_->publish(mta);
 }
 
 void KenMissionManager::updateStatusWaiting(void)
@@ -178,7 +190,6 @@ void KenMissionManager::updateStatusWaiting(void)
 
     current_state_ = MissionState::DURING_EXECUTION;
     RCLCPP_INFO(this->get_logger(), "During execution");
-    is_goal_ = true;
   } else if (is_move_kamae_button_pushed_) {
     recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
@@ -189,12 +200,10 @@ void KenMissionManager::updateStatusWaiting(void)
 
     current_state_ = MissionState::DURING_EXECUTION;
     RCLCPP_INFO(this->get_logger(), "During execution");
-    is_goal_ = true;
   } else if (is_auto_button_pushed_) {
     recieved_mission_trajectory_.plan_result = false;
     current_state_ = MissionState::AUTO_PLANNING;
     RCLCPP_INFO(this->get_logger(), "Auto");
-    is_goal_ = true;
   }
 }
 
@@ -203,6 +212,17 @@ void KenMissionManager::executeMission(void)
   switch (current_state_) {
     case MissionState::WAITING: {
       // do nothing
+      RCLCPP_INFO(this->get_logger(), "Waiting");
+      if (
+        recieved_mission_trajectory_.plan_result &&
+        !recieved_mission_trajectory_.trajectories.empty()) {
+        auto cmd_string = std_msgs::msg::String();
+        cmd_string.data = recieved_mission_trajectory_.type_names.back();
+        cmd_string_pub_->publish(cmd_string);
+        cmd_pub_->publish(recieved_mission_trajectory_.trajectories.back());
+        recieved_mission_trajectory_.trajectories.pop_back();
+        recieved_mission_trajectory_.type_names.pop_back();
+      }
     } break;
 
     case MissionState::DURING_EXECUTION: {
@@ -215,7 +235,6 @@ void KenMissionManager::executeMission(void)
         cmd_pub_->publish(recieved_mission_trajectory_.trajectories.back());
         recieved_mission_trajectory_.trajectories.pop_back();
         recieved_mission_trajectory_.type_names.pop_back();
-        is_goal_ = false;
       }
     } break;
 
@@ -253,6 +272,7 @@ void KenMissionManager::execAutoPlanning(void)
 {
   // TODO: Change push target
   // TODO: Check target range
+  // TODO: ここでfalseにすると次のループまでにplanningが終了する前提になってしまう
   recieved_mission_trajectory_.plan_result = false;
   ken_msgs::msg::MissionTargetArray mta;
   mta.header.stamp = rclcpp::Time(0);

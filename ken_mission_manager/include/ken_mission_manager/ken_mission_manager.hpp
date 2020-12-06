@@ -53,6 +53,7 @@ private:
   void updateStatus(void);
   void executeMission(void);
 
+  void publishHoldMissionTrajectory(void);
   void updateStatusWaiting(void);
 
   void execAutoPlanning(void);
