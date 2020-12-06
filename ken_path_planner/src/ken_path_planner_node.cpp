@@ -61,6 +61,15 @@ private:
   void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
   void mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg);
 
+  inline builtin_interfaces::msg::Duration second2duration(const double & second)
+  {
+    builtin_interfaces::msg::Duration duration;
+    duration.sec = static_cast<int32_t>(second);
+    duration.nanosec = static_cast<int32_t>((second - static_cast<double>(duration.sec)) * 1e9);
+
+    return duration;
+  }
+
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr fk_debug_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ik_debug_pose_pub_;
@@ -123,7 +132,7 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   mission_target_sub_ = this->create_subscription<ken_msgs::msg::MissionTargetArray>(
     "mission_target", 1, std::bind(&KenPathPlanner::mission_target_callback, this, _1));
 
-  std::cout << "Finish Initialization" << std::endl;
+  std::cout << "Finish Initialize Path Planner" << std::endl;
 }
 
 KenPathPlanner::~KenPathPlanner() {}
@@ -255,6 +264,7 @@ bool KenPathPlanner::makeMenTrajectory(
   }
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point;
+  // TODO: 関数化してなんとかする
   via_point.time_from_start.sec = (uint32_t)move_time_ / 2;
   via_point.time_from_start.nanosec =
     (uint32_t)((move_time_ / 2 - via_point.time_from_start.sec) * 1e9);

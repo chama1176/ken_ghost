@@ -3,9 +3,9 @@
 <package format="3">
   <name>ken_motion_sound_py</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>ken_motion_sound_py</description>
   <maintainer email="kaede6120@gmail.com">kaede</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache License 2.0</license>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
