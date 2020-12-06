@@ -43,10 +43,13 @@ public:
 
 private:
   bool makeCurrentPosTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
-  bool makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
-  bool makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
+  bool makeMoveHomeTrajectory(
+    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos);
+  bool makeMoveKamaeTrajectory(
+    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos);
   bool makeMenTrajectory(
     trajectory_msgs::msg::JointTrajectory & jtm, const geometry_msgs::msg::Pose pose);
+  bool makeMenAfterTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
 
   void pushInterpolateTrajectoryPoints(
     trajectory_msgs::msg::JointTrajectory & jtm,
@@ -162,7 +165,8 @@ bool KenPathPlanner::makeCurrentPosTrajectory(trajectory_msgs::msg::JointTraject
   return true;
 }
 
-bool KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
+bool KenPathPlanner::makeMoveHomeTrajectory(
+  trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos)
 {
   jtm.header.stamp = rclcpp::Time(0);
   jtm.joint_names = name_vec_;
@@ -171,7 +175,7 @@ bool KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajector
   start_point.time_from_start.sec = 0;
   start_point.time_from_start.nanosec = 0;
   for (size_t i = 0; i < (size_t)joint_num_; ++i) {
-    start_point.positions.push_back(current_pos_[i]);
+    start_point.positions.push_back(current_pos[i]);
   }
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
   end_point.time_from_start.sec = (uint32_t)move_time_;
@@ -186,7 +190,33 @@ bool KenPathPlanner::makeMoveHomeTrajectory(trajectory_msgs::msg::JointTrajector
   return true;
 }
 
-bool KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
+bool KenPathPlanner::makeMoveKamaeTrajectory(
+  trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos)
+{
+  jtm.header.stamp = rclcpp::Time(0);
+  jtm.joint_names = name_vec_;
+
+  trajectory_msgs::msg::JointTrajectoryPoint start_point;
+  start_point.time_from_start.sec = 0;
+  start_point.time_from_start.nanosec = 0;
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    start_point.positions.push_back(current_pos[i]);
+  }
+
+  trajectory_msgs::msg::JointTrajectoryPoint end_point;
+  end_point.time_from_start.sec = (uint32_t)move_time_;
+  end_point.time_from_start.nanosec =
+    (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
+  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+    end_point.positions.push_back(kamae_pos_[i]);
+  }
+
+  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
+
+  return true;
+}
+
+bool KenPathPlanner::makeMenAfterTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
 {
   jtm.header.stamp = rclcpp::Time(0);
   jtm.joint_names = name_vec_;
@@ -202,9 +232,9 @@ bool KenPathPlanner::makeMoveKamaeTrajectory(trajectory_msgs::msg::JointTrajecto
   end_point.time_from_start.sec = (uint32_t)move_time_;
   end_point.time_from_start.nanosec =
     (uint32_t)((move_time_ - end_point.time_from_start.sec) * 1e9);
-  for (size_t i = 0; i < (size_t)joint_num_; ++i) {
-    end_point.positions.push_back(kamae_pos_[i]);
-  }
+  end_point.positions = start_point.positions;
+  end_point.positions[3] = 0.0;
+  end_point.positions[4] = 0.0;
 
   pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
 
@@ -250,6 +280,15 @@ bool KenPathPlanner::makeMenTrajectory(
 
     pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
     pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
+
+    trajectory_msgs::msg::JointTrajectoryPoint back_point;
+    back_point = end_point;
+    back_point.positions = via_point.positions;
+    back_point.time_from_start.sec = (uint32_t)move_time_ * 3 / 2;
+    back_point.time_from_start.nanosec =
+      (uint32_t)((move_time_ * 3 / 2 - back_point.time_from_start.sec) * 1e9);
+    pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
+
   } else {
     return false;
   }
@@ -298,17 +337,21 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
   mtm.plan_result = true;
   mtm.type = msg->type;
 
-  for (int i = (int)msg->type.size() - 1; i >= 0; --i) {
+  for (size_t i = 0; i < msg->type.size(); ++i) {
     trajectory_msgs::msg::JointTrajectory jt;
     std::string jt_name;
     if (msg->type[i] == msg->HOLD) {
       mtm.plan_result &= makeCurrentPosTrajectory(jt);
       jt_name = "hold";
     } else if (msg->type[i] == msg->HOME) {
-      mtm.plan_result &= makeMoveHomeTrajectory(jt);
+      mtm.plan_result &= makeMoveHomeTrajectory(jt, current_pos_);
       jt_name = "home";
     } else if (msg->type[i] == msg->KAMAE) {
-      mtm.plan_result &= makeMoveKamaeTrajectory(jt);
+      if (mtm.trajectories.empty())
+        mtm.plan_result &= makeMoveKamaeTrajectory(jt, current_pos_);
+      else
+        mtm.plan_result &=
+          makeMoveKamaeTrajectory(jt, mtm.trajectories.back().points.back().positions);
       jt_name = "kamae";
     } else if (msg->type[i] == msg->MEN) {
       mtm.plan_result &= makeMenTrajectory(jt, msg->poses[i]);
@@ -321,6 +364,9 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
     mtm.trajectories.push_back(jt);
     mtm.type_names.push_back(jt_name);
   }
+
+  std::reverse(mtm.trajectories.begin(), mtm.trajectories.end());
+  std::reverse(mtm.type_names.begin(), mtm.type_names.end());
 
   mission_trajectory_pub_->publish(mtm);
 }

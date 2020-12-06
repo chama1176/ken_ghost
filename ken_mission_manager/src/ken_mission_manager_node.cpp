@@ -116,7 +116,6 @@ void KenMissionManager::timerCallback(void)
 {
   updateStatus();
   executeMission();
-  std::cout << "loop" << std::endl;
 }
 
 void KenMissionManager::redTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
