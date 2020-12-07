@@ -72,6 +72,7 @@ private:
   void goalStatusCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
   void setMissionState(const MissionState & st);
+  void publishMissionTarget(ken_msgs::msg::MissionTargetArray & mta);
 
   void updateStatus(void);
   void executeMission(void);
@@ -129,8 +130,7 @@ private:
   bool is_dou_button_pushed_;
   bool is_auto_button_pushed_;
 
-  bool is_target_sent_;
-  bool is_cmd_sent_;
+  bool is_plan_received_;
   bool is_goal_;
 
   double move_time_;

@@ -33,7 +33,8 @@ KenMissionManager::KenMissionManager()
 : Node("ken_mission_manager"),
   clock_(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)),
   tf2_buffer_(clock_),
-  tf2_listener_(tf2_buffer_)
+  tf2_listener_(tf2_buffer_),
+  is_plan_received_(false)
 {
   this->declare_parameter("enable_button", -1);
   this->get_parameter("enable_button", enable_button_);
@@ -132,6 +133,7 @@ void KenMissionManager::mission_trajectory_callback(
   const ken_msgs::msg::MissionTrajectory::SharedPtr msg)
 {
   recieved_mission_trajectory_ = *msg;
+  is_plan_received_ = true;
 }
 
 void KenMissionManager::timerCallback(void)
@@ -169,6 +171,13 @@ void KenMissionManager::setMissionState(const MissionState & st)
   std::cout << enum_mission_state_map.at(st).c_str() << std::endl;
 }
 
+void KenMissionManager::publishMissionTarget(ken_msgs::msg::MissionTargetArray & mta)
+{
+  mta.header.stamp = rclcpp::Time(0);
+  mission_target_pub_->publish(mta);
+  is_plan_received_ = false;
+}
+
 void KenMissionManager::updateStatus(void)
 {
   switch (current_state_) {
@@ -177,9 +186,12 @@ void KenMissionManager::updateStatus(void)
     } break;
 
     case MissionState::DURING_EXECUTION: {
-      if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
+      if (is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
         setMissionState(MissionState::WAITING);
         publishHoldMissionTrajectory();
+      }
+      if (is_plan_received_ && recieved_mission_trajectory_.plan_result == false) {
+        setMissionState(MissionState::WAITING);
       }
     } break;
 
@@ -187,13 +199,13 @@ void KenMissionManager::updateStatus(void)
     } break;
 
     case MissionState::AUTO_PLANNING: {
-      if (recieved_mission_trajectory_.plan_result) {
+      if (is_plan_received_ && recieved_mission_trajectory_.plan_result) {
         setMissionState(MissionState::AUTO_DURING_EXECUTION);
       }
     } break;
 
     case MissionState::AUTO_DURING_EXECUTION: {
-      if (is_goal_ && recieved_mission_trajectory_.trajectories.empty()) {
+      if (is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
         setMissionState(MissionState::WAITING);
         publishHoldMissionTrajectory();
       }
@@ -219,25 +231,19 @@ void KenMissionManager::updateStatusWaiting(void)
 {
   if (is_move_home_button_pushed_) {
     // TODO: きれいにしたい
-    recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
-    mta.header.stamp = rclcpp::Time(0);
     mta.type.push_back(mta.HOME);
     mta.poses.push_back(geometry_msgs::msg::Pose());
-    mission_target_pub_->publish(mta);
+    publishMissionTarget(mta);
     setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_move_kamae_button_pushed_) {
-    recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
-    mta.header.stamp = rclcpp::Time(0);
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
-    mission_target_pub_->publish(mta);
+    publishMissionTarget(mta);
     setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_men_button_pushed_) {
-    recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
-    mta.header.stamp = rclcpp::Time(0);
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     if (!red_target_.poses.empty()) {
@@ -251,12 +257,10 @@ void KenMissionManager::updateStatusWaiting(void)
     }
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
-    mission_target_pub_->publish(mta);
+    publishMissionTarget(mta);
     setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_dou_button_pushed_) {
-    recieved_mission_trajectory_.plan_result = false;
     ken_msgs::msg::MissionTargetArray mta;
-    mta.header.stamp = rclcpp::Time(0);
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     if (!blue_target_.poses.empty()) {
@@ -270,10 +274,9 @@ void KenMissionManager::updateStatusWaiting(void)
     }
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
-    mission_target_pub_->publish(mta);
+    publishMissionTarget(mta);
     setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_auto_button_pushed_) {
-    recieved_mission_trajectory_.plan_result = false;
     setMissionState(MissionState::AUTO_PLANNING);
   }
 }
@@ -298,7 +301,7 @@ void KenMissionManager::executeMission(void)
     case MissionState::DURING_EXECUTION: {
       // TODO: IKを解くのに失敗したときの対応がない
       if (
-        is_goal_ && recieved_mission_trajectory_.plan_result &&
+        is_goal_ && is_plan_received_ && recieved_mission_trajectory_.plan_result &&
         !recieved_mission_trajectory_.trajectories.empty()) {
         auto cmd_string = std_msgs::msg::String();
         cmd_string.data = recieved_mission_trajectory_.type_names.back();
@@ -343,24 +346,25 @@ void KenMissionManager::execAutoPlanning(void)
 {
   // TODO: Change push target
   // TODO: Check target range
-  // TODO: ここでfalseにすると次のループまでにplanningが終了する前提になってしまう. cmd send check を入れたほうがよい?
-  recieved_mission_trajectory_.plan_result = false;
-  ken_msgs::msg::MissionTargetArray mta;
-  mta.header.stamp = rclcpp::Time(0);
-  mta.type.push_back(mta.KAMAE);
-  mta.poses.push_back(geometry_msgs::msg::Pose());
-  if (!red_target_.poses.empty()) {
-    geometry_msgs::msg::PoseStamped target_transformed;
-    geometry_msgs::msg::PoseStamped target_pose;
-    target_pose.pose = red_target_.poses.front();
-    target_pose.header = red_target_.header;
-    tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-    mta.type.push_back(mta.MEN);
-    mta.poses.push_back(target_transformed.pose);
+  if (is_plan_received_) {
+    ken_msgs::msg::MissionTargetArray mta;
+    mta.type.push_back(mta.KAMAE);
+    mta.poses.push_back(geometry_msgs::msg::Pose());
+    if (!red_target_.poses.empty()) {
+      geometry_msgs::msg::PoseStamped target_transformed;
+      geometry_msgs::msg::PoseStamped target_pose;
+      target_pose.pose = red_target_.poses.front();
+      target_pose.header = red_target_.header;
+      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+      mta.type.push_back(mta.MEN);
+      mta.poses.push_back(target_transformed.pose);
+    }
+    mta.type.push_back(mta.KAMAE);
+    mta.poses.push_back(geometry_msgs::msg::Pose());
+    publishMissionTarget(mta);
+  } else {
+    // Wait for planning finished
   }
-  mta.type.push_back(mta.KAMAE);
-  mta.poses.push_back(geometry_msgs::msg::Pose());
-  mission_target_pub_->publish(mta);
 }
 
 int main(int argc, char * argv[])

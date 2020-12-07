@@ -311,7 +311,7 @@ bool KenPathPlanner::makeDouTrajectory(
 
     via_point.positions = end_point.positions;
     via_point.positions[3] = 0.0;
-    via_point.positions[4] = 1.0;
+    via_point.positions[4] = 0.0;
 
     pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
     pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
