@@ -50,6 +50,10 @@ private:
   bool makeMenTrajectory(
     trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
     const geometry_msgs::msg::Pose pose);
+  bool makeDouTrajectory(
+    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
+    const geometry_msgs::msg::Pose pose);
+
   bool makeMenAfterTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
 
   void pushInterpolateTrajectoryPoints(
@@ -278,6 +282,53 @@ bool KenPathPlanner::makeMenTrajectory(
   return true;
 }
 
+bool KenPathPlanner::makeDouTrajectory(
+  trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
+  const geometry_msgs::msg::Pose pose)
+{
+  jtm.header.stamp = rclcpp::Time(0);
+  jtm.joint_names = name_vec_;
+
+  trajectory_msgs::msg::JointTrajectoryPoint start_point;
+  start_point.time_from_start = second2duration(0.0);
+  start_point.positions = current_pos;
+
+  trajectory_msgs::msg::JointTrajectoryPoint via_point;
+  via_point.time_from_start = second2duration(move_time_ / 2);
+
+  trajectory_msgs::msg::JointTrajectoryPoint end_point;
+  end_point.time_from_start = second2duration(move_time_);
+
+  Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+
+  KenIK ik;
+  std::vector<double> ik_ans;
+  if (ik.calcPositionIK(target_pos, kamae_pos_, ik_ans)) {
+    publishIKlog(ik);
+    for (size_t i = 0; i < (size_t)joint_num_; ++i) {
+      end_point.positions.push_back(ik_ans[i]);
+    }
+
+    via_point.positions = end_point.positions;
+    via_point.positions[3] = 0.0;
+    via_point.positions[4] = 1.0;
+
+    pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
+    pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
+
+    trajectory_msgs::msg::JointTrajectoryPoint back_point;
+    back_point = end_point;
+    back_point.positions = via_point.positions;
+    back_point.time_from_start = second2duration(move_time_ * 3 / 2);
+    pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
+
+  } else {
+    return false;
+  }
+
+  return true;
+}
+
 void KenPathPlanner::publishIKlog(const KenIK & ik)
 {
   // Publish IK calculation log
@@ -320,29 +371,36 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
   for (size_t i = 0; i < msg->type.size(); ++i) {
     trajectory_msgs::msg::JointTrajectory jt;
     std::string jt_name;
+    bool is_planning_succeed_ = true;
     if (msg->type[i] == msg->HOLD) {
-      mtm.plan_result &= makeCurrentPosTrajectory(jt);
+      is_planning_succeed_ &= makeCurrentPosTrajectory(jt);
       jt_name = "hold";
     } else if (msg->type[i] == msg->HOME) {
-      mtm.plan_result &= makeMoveHomeTrajectory(jt, current_pos_);
+      is_planning_succeed_ &= makeMoveHomeTrajectory(jt, current_pos_);
       jt_name = "home";
     } else if (msg->type[i] == msg->KAMAE) {
       if (mtm.trajectories.empty())
-        mtm.plan_result &= makeMoveKamaeTrajectory(jt, current_pos_);
+        is_planning_succeed_ &= makeMoveKamaeTrajectory(jt, current_pos_);
       else
-        mtm.plan_result &=
+        is_planning_succeed_ &=
           makeMoveKamaeTrajectory(jt, mtm.trajectories.back().points.back().positions);
       jt_name = "kamae";
     } else if (msg->type[i] == msg->MEN) {
-      mtm.plan_result &= makeMenTrajectory(jt, current_pos_, msg->poses[i]);
+      is_planning_succeed_ &= makeMenTrajectory(jt, current_pos_, msg->poses[i]);
       jt_name = "men";
+    } else if (msg->type[i] == msg->DOU) {
+      is_planning_succeed_ &= makeDouTrajectory(jt, current_pos_, msg->poses[i]);
+      jt_name = "dou";
     } else {
-      mtm.plan_result = false;
+      is_planning_succeed_ = false;
       break;
     }
 
-    mtm.trajectories.push_back(jt);
-    mtm.type_names.push_back(jt_name);
+    mtm.plan_result &= is_planning_succeed_;
+    if (is_planning_succeed_) {
+      mtm.trajectories.push_back(jt);
+      mtm.type_names.push_back(jt_name);
+    }
   }
 
   // Mission Manager側で後ろから処理していくので反転させておく

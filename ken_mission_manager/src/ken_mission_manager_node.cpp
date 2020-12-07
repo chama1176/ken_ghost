@@ -74,6 +74,13 @@ KenMissionManager::KenMissionManager()
     "joy", 1, std::bind(&KenMissionManager::joyCallback, this, _1));
   red_target_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
     "red_target", 1, std::bind(&KenMissionManager::redTargetCallback, this, _1));
+  blue_target_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+    "blue_target", 1, std::bind(&KenMissionManager::blueTargetCallback, this, _1));
+  yellow_target_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+    "yellow_target", 1, std::bind(&KenMissionManager::yellowTargetCallback, this, _1));
+  green_target_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+    "green_target", 1, std::bind(&KenMissionManager::greenTargetCallback, this, _1));
+
   goal_status_sub_ = this->create_subscription<std_msgs::msg::Bool>(
     "goal_status", 1, std::bind(&KenMissionManager::goalStatusCallback, this, _1));
 
@@ -136,6 +143,18 @@ void KenMissionManager::timerCallback(void)
 void KenMissionManager::redTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
 {
   red_target_ = *msg;
+}
+void KenMissionManager::blueTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
+{
+  blue_target_ = *msg;
+}
+void KenMissionManager::yellowTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
+{
+  yellow_target_ = *msg;
+}
+void KenMissionManager::greenTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
+{
+  green_target_ = *msg;
 }
 
 void KenMissionManager::goalStatusCallback(const std_msgs::msg::Bool::SharedPtr msg)
@@ -234,6 +253,25 @@ void KenMissionManager::updateStatusWaiting(void)
     mta.poses.push_back(geometry_msgs::msg::Pose());
     mission_target_pub_->publish(mta);
     setMissionState(MissionState::DURING_EXECUTION);
+  } else if (is_dou_button_pushed_) {
+    recieved_mission_trajectory_.plan_result = false;
+    ken_msgs::msg::MissionTargetArray mta;
+    mta.header.stamp = rclcpp::Time(0);
+    mta.type.push_back(mta.KAMAE);
+    mta.poses.push_back(geometry_msgs::msg::Pose());
+    if (!blue_target_.poses.empty()) {
+      geometry_msgs::msg::PoseStamped target_transformed;
+      geometry_msgs::msg::PoseStamped target_pose;
+      target_pose.pose = blue_target_.poses.front();
+      target_pose.header = blue_target_.header;
+      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+      mta.type.push_back(mta.DOU);
+      mta.poses.push_back(target_transformed.pose);
+    }
+    mta.type.push_back(mta.KAMAE);
+    mta.poses.push_back(geometry_msgs::msg::Pose());
+    mission_target_pub_->publish(mta);
+    setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_auto_button_pushed_) {
     recieved_mission_trajectory_.plan_result = false;
     setMissionState(MissionState::AUTO_PLANNING);
@@ -258,6 +296,7 @@ void KenMissionManager::executeMission(void)
     } break;
 
     case MissionState::DURING_EXECUTION: {
+      // TODO: IKを解くのに失敗したときの対応がない
       if (
         is_goal_ && recieved_mission_trajectory_.plan_result &&
         !recieved_mission_trajectory_.trajectories.empty()) {
@@ -304,7 +343,7 @@ void KenMissionManager::execAutoPlanning(void)
 {
   // TODO: Change push target
   // TODO: Check target range
-  // TODO: ここでfalseにすると次のループまでにplanningが終了する前提になってしまう
+  // TODO: ここでfalseにすると次のループまでにplanningが終了する前提になってしまう. cmd send check を入れたほうがよい?
   recieved_mission_trajectory_.plan_result = false;
   ken_msgs::msg::MissionTargetArray mta;
   mta.header.stamp = rclcpp::Time(0);

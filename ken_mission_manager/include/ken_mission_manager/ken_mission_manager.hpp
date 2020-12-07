@@ -65,6 +65,10 @@ private:
   void mission_trajectory_callback(const ken_msgs::msg::MissionTrajectory::SharedPtr msg);
   void timerCallback(void);
   void redTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
+  void blueTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
+  void yellowTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
+  void greenTargetCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg);
+
   void goalStatusCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
   void setMissionState(const MissionState & st);
@@ -96,6 +100,10 @@ private:
 
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr red_target_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr blue_target_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr yellow_target_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr green_target_sub_;
+
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr goal_status_sub_;
   rclcpp::Subscription<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_sub_;
 
@@ -103,6 +111,9 @@ private:
   ken_msgs::msg::MissionTrajectory recieved_mission_trajectory_;
 
   geometry_msgs::msg::PoseArray red_target_;
+  geometry_msgs::msg::PoseArray blue_target_;
+  geometry_msgs::msg::PoseArray yellow_target_;
+  geometry_msgs::msg::PoseArray green_target_;
 
   int64_t enable_button_;
   int64_t move_home_button_;
