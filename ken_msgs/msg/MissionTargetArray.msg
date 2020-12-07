@@ -6,6 +6,7 @@ byte MEN = 5
 byte DOU = 6
 byte KOTE = 7
 byte TSUKI = 8
+byte RDOU = 9
 
 std_msgs/Header header
 int32[] type

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <cinttypes>
 #include <functional>
 #include <map>
@@ -50,7 +51,7 @@ private:
   bool makeMenTrajectory(
     trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
     const geometry_msgs::msg::Pose pose);
-  bool makeDouTrajectory(
+  bool makeRDouTrajectory(
     trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
     const geometry_msgs::msg::Pose pose);
 
@@ -93,6 +94,7 @@ private:
   std::vector<std::string> name_vec_;
   std::vector<double> current_pos_;
   std::vector<double> kamae_pos_;
+  const std::vector<double> rdou_base_pos_ = {0.0, M_PI_2, -M_PI_2, -M_PI_2, M_PI_4};
 };
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("base_link")
@@ -282,7 +284,7 @@ bool KenPathPlanner::makeMenTrajectory(
   return true;
 }
 
-bool KenPathPlanner::makeDouTrajectory(
+bool KenPathPlanner::makeRDouTrajectory(
   trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
   const geometry_msgs::msg::Pose pose)
 {
@@ -303,7 +305,7 @@ bool KenPathPlanner::makeDouTrajectory(
 
   KenIK ik;
   std::vector<double> ik_ans;
-  if (ik.calcPositionIK(target_pos, kamae_pos_, ik_ans)) {
+  if (ik.calcPositionIK(target_pos, rdou_base_pos_, ik_ans)) {
     publishIKlog(ik);
     for (size_t i = 0; i < (size_t)joint_num_; ++i) {
       end_point.positions.push_back(ik_ans[i]);
@@ -311,7 +313,7 @@ bool KenPathPlanner::makeDouTrajectory(
 
     via_point.positions = end_point.positions;
     via_point.positions[3] = 0.0;
-    via_point.positions[4] = 0.0;
+    via_point.positions[4] = rdou_base_pos_[4];
 
     pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
     pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
@@ -388,8 +390,8 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
     } else if (msg->type[i] == msg->MEN) {
       is_planning_succeed_ &= makeMenTrajectory(jt, current_pos_, msg->poses[i]);
       jt_name = "men";
-    } else if (msg->type[i] == msg->DOU) {
-      is_planning_succeed_ &= makeDouTrajectory(jt, current_pos_, msg->poses[i]);
+    } else if (msg->type[i] == msg->RDOU) {
+      is_planning_succeed_ &= makeRDouTrajectory(jt, current_pos_, msg->poses[i]);
       jt_name = "dou";
     } else {
       is_planning_succeed_ = false;

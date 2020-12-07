@@ -196,6 +196,9 @@ void KenMissionManager::updateStatus(void)
     } break;
 
     case MissionState::AUTO_WAITING: {
+      if (!green_target_.poses.empty()) {
+        setMissionState(MissionState::AUTO_PLANNING);
+      }
     } break;
 
     case MissionState::AUTO_PLANNING: {
@@ -269,7 +272,7 @@ void KenMissionManager::updateStatusWaiting(void)
       target_pose.pose = blue_target_.poses.front();
       target_pose.header = blue_target_.header;
       tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-      mta.type.push_back(mta.DOU);
+      mta.type.push_back(mta.RDOU);
       mta.poses.push_back(target_transformed.pose);
     }
     mta.type.push_back(mta.KAMAE);
@@ -277,7 +280,7 @@ void KenMissionManager::updateStatusWaiting(void)
     publishMissionTarget(mta);
     setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_auto_button_pushed_) {
-    setMissionState(MissionState::AUTO_PLANNING);
+    setMissionState(MissionState::AUTO_WAITING);
   }
 }
 
@@ -299,7 +302,6 @@ void KenMissionManager::executeMission(void)
     } break;
 
     case MissionState::DURING_EXECUTION: {
-      // TODO: IKを解くのに失敗したときの対応がない
       if (
         is_goal_ && is_plan_received_ && recieved_mission_trajectory_.plan_result &&
         !recieved_mission_trajectory_.trajectories.empty()) {
