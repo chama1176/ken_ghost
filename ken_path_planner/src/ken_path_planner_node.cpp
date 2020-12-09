@@ -297,16 +297,13 @@ bool KenPathPlanner::makeRDouTrajectory(
   start_point.positions = current_pos;
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point;
-  via_point.time_from_start = second2duration(move_time_ / 4.0);
-
-  trajectory_msgs::msg::JointTrajectoryPoint via_point2;
-  via_point2.time_from_start = second2duration(move_time_ * 2.0 / 4.0);
+  via_point.time_from_start = second2duration(move_time_ / 3.0);
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start = second2duration(move_time_ * 3.0 / 4.0);
+  end_point.time_from_start = second2duration(move_time_ * 2.0 / 3.0);
 
   std::vector<Eigen::Vector3d> target_pos;
-  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y - 0.2, pose.position.z));
+  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y - 0.15, pose.position.z));
   target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
 
   KenIK ik;
@@ -320,19 +317,18 @@ bool KenPathPlanner::makeRDouTrajectory(
   if (is_ik_ok) {
     publishIKlog(ik);
     end_point.positions = ik_ans.back();
-    via_point2.positions = ik_ans.front();
 
-    via_point.positions = via_point2.positions;
+    via_point.positions = ik_ans.front();
     via_point.positions[3] = 0.0;
     via_point.positions[4] = rdou_base_pos_[4];
 
     trajectory_msgs::msg::JointTrajectoryPoint back_point;
     back_point.positions = via_point.positions;
-    back_point.time_from_start = second2duration(move_time_ * 4 / 4);
+    back_point.time_from_start = second2duration(move_time_ * 3 / 3);
 
     pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
-    pushInterpolateTrajectoryPoints(jtm, via_point, via_point2, 100);
-    pushInterpolateTrajectoryPoints(jtm, via_point2, end_point, 100);
+    pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
+    //    pushInterpolateTrajectoryPoints(jtm, via_point2, end_point, 100);
     pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
 
   } else {
