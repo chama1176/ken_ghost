@@ -383,6 +383,34 @@ void KenMissionManager::execAutoPlanning(void)
       mta.type.push_back(mta.MEN);
       mta.poses.push_back(target_transformed.pose);
     }
+    if (!blue_target_.poses.empty()) {
+      geometry_msgs::msg::PoseStamped target_transformed;
+      geometry_msgs::msg::PoseStamped target_pose;
+      target_pose.pose = blue_target_.poses.front();
+      target_pose.header = blue_target_.header;
+      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+      mta.type.push_back(mta.RDOU);
+      mta.poses.push_back(target_transformed.pose);
+    }
+    if (!red_target_.poses.empty()) {
+      geometry_msgs::msg::PoseStamped target_transformed;
+      geometry_msgs::msg::PoseStamped target_pose;
+      target_pose.pose = red_target_.poses.front();
+      target_pose.header = red_target_.header;
+      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+      mta.type.push_back(mta.MEN);
+      mta.poses.push_back(target_transformed.pose);
+    }
+    if (!blue_target_.poses.empty()) {
+      geometry_msgs::msg::PoseStamped target_transformed;
+      geometry_msgs::msg::PoseStamped target_pose;
+      target_pose.pose = blue_target_.poses.front();
+      target_pose.header = blue_target_.header;
+      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+      mta.type.push_back(mta.RDOU);
+      mta.poses.push_back(target_transformed.pose);
+    }
+
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     publishMissionTarget(mta);

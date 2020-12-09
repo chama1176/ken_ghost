@@ -249,10 +249,10 @@ bool KenPathPlanner::makeMenTrajectory(
   start_point.positions = current_pos;
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point;
-  via_point.time_from_start = second2duration(move_time_ / 2.0);
+  via_point.time_from_start = second2duration(move_time_ * 1.0 / 3.0);
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start = second2duration(move_time_);
+  end_point.time_from_start = second2duration(move_time_ * 2.0 / 3.0);
 
   Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
 
@@ -275,7 +275,7 @@ bool KenPathPlanner::makeMenTrajectory(
     trajectory_msgs::msg::JointTrajectoryPoint back_point;
     back_point = end_point;
     back_point.positions = via_point.positions;
-    back_point.time_from_start = second2duration(move_time_ * 3.0 / 2.0);
+    back_point.time_from_start = second2duration(move_time_ * 3.0 / 3.0);
     pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
 
   } else {
@@ -297,19 +297,18 @@ bool KenPathPlanner::makeRDouTrajectory(
   start_point.positions = current_pos;
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point;
-  via_point.time_from_start = second2duration(move_time_ / 4);
+  via_point.time_from_start = second2duration(move_time_ / 4.0);
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point2;
-  via_point.time_from_start = second2duration(move_time_ * 2 / 4);
+  via_point2.time_from_start = second2duration(move_time_ * 2.0 / 4.0);
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start = second2duration(move_time_ * 3 / 4);
+  end_point.time_from_start = second2duration(move_time_ * 3.0 / 4.0);
 
   std::vector<Eigen::Vector3d> target_pos;
-  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y - 0.1, pose.position.z));
+  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y - 0.2, pose.position.z));
   target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
 
-  // TODO: 一旦横方向におろしてから狙う
   KenIK ik;
   std::vector<std::vector<double>> ik_ans(target_pos.size(), std::vector<double>());
   bool is_ik_ok = true;
@@ -328,7 +327,6 @@ bool KenPathPlanner::makeRDouTrajectory(
     via_point.positions[4] = rdou_base_pos_[4];
 
     trajectory_msgs::msg::JointTrajectoryPoint back_point;
-    back_point = end_point;
     back_point.positions = via_point.positions;
     back_point.time_from_start = second2duration(move_time_ * 4 / 4);
 
@@ -401,10 +399,18 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
           makeMoveKamaeTrajectory(jt, mtm.trajectories.back().points.back().positions);
       jt_name = "kamae";
     } else if (msg->type[i] == msg->MEN) {
-      is_planning_succeed_ &= makeMenTrajectory(jt, current_pos_, msg->poses[i]);
+      if (mtm.trajectories.empty())
+        is_planning_succeed_ &= makeMenTrajectory(jt, current_pos_, msg->poses[i]);
+      else
+        is_planning_succeed_ &=
+          makeMenTrajectory(jt, mtm.trajectories.back().points.back().positions, msg->poses[i]);
       jt_name = "men";
     } else if (msg->type[i] == msg->RDOU) {
-      is_planning_succeed_ &= makeRDouTrajectory(jt, current_pos_, msg->poses[i]);
+      if (mtm.trajectories.empty())
+        is_planning_succeed_ &= makeRDouTrajectory(jt, current_pos_, msg->poses[i]);
+      else
+        is_planning_succeed_ &=
+          makeRDouTrajectory(jt, mtm.trajectories.back().points.back().positions, msg->poses[i]);
       jt_name = "dou";
     } else {
       is_planning_succeed_ = false;
