@@ -328,7 +328,6 @@ bool KenPathPlanner::makeRDouTrajectory(
 
     pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
     pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
-    //    pushInterpolateTrajectoryPoints(jtm, via_point2, end_point, 100);
     pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
 
   } else {

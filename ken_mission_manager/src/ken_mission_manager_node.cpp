@@ -194,39 +194,40 @@ void KenMissionManager::updateStatus(void)
     } break;
 
     case MissionState::DURING_EXECUTION: {
-      if (is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
+      if (is_cancel_button_pushed_) {
+        setMissionState(MissionState::WAITING);
+      } else if (
+        is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
         setMissionState(MissionState::WAITING);
         publishHoldMissionTrajectory();
-      }
-      if (is_plan_received_ && recieved_mission_trajectory_.plan_result == false) {
+      } else if (is_plan_received_ && recieved_mission_trajectory_.plan_result == false) {
         setMissionState(MissionState::WAITING);
       }
     } break;
 
     case MissionState::AUTO_WAITING: {
       rclcpp::Duration elasped = clock_->now() - last_auto_finish_time_;
-      // std::cout << rclcpp::Time(0) << "." << rclcpp::Time(0).nanoseconds() << std::endl;
-      // std::cout << last_auto_finish_time_.seconds() << "." << last_auto_finish_time_.nanoseconds()
-      //           << std::endl;
       std::cout << elasped.seconds() << "." << elasped.nanoseconds() << std::endl;
       if (is_cancel_button_pushed_) {
         setMissionState(MissionState::WAITING);
       } else if (elasped.seconds() >= 2) {
         setMissionState(MissionState::AUTO_PLANNING);
       }
-      // else if (!green_target_.poses.empty()) {
-      //   setMissionState(MissionState::AUTO_PLANNING);
-      // }
     } break;
 
     case MissionState::AUTO_PLANNING: {
-      if (is_plan_received_ && recieved_mission_trajectory_.plan_result) {
+      if (is_cancel_button_pushed_) {
+        setMissionState(MissionState::WAITING);
+      } else if (is_plan_received_ && recieved_mission_trajectory_.plan_result) {
         setMissionState(MissionState::AUTO_DURING_EXECUTION);
       }
     } break;
 
     case MissionState::AUTO_DURING_EXECUTION: {
-      if (is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
+      if (is_cancel_button_pushed_) {
+        setMissionState(MissionState::WAITING);
+      } else if (
+        is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
         setMissionState(MissionState::AUTO_WAITING);
         last_auto_finish_time_ = clock_->now();
         publishHoldMissionTrajectory();
