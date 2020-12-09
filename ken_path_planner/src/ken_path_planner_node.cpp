@@ -297,33 +297,44 @@ bool KenPathPlanner::makeRDouTrajectory(
   start_point.positions = current_pos;
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point;
-  via_point.time_from_start = second2duration(move_time_ / 2);
+  via_point.time_from_start = second2duration(move_time_ / 4);
+
+  trajectory_msgs::msg::JointTrajectoryPoint via_point2;
+  via_point.time_from_start = second2duration(move_time_ * 2 / 4);
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start = second2duration(move_time_);
+  end_point.time_from_start = second2duration(move_time_ * 3 / 4);
 
-  Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+  std::vector<Eigen::Vector3d> target_pos;
+  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y - 0.1, pose.position.z));
+  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
 
   // TODO: 一旦横方向におろしてから狙う
   KenIK ik;
-  std::vector<double> ik_ans;
-  if (ik.calcPositionIK(target_pos, rdou_base_pos_, ik_ans)) {
-    publishIKlog(ik);
-    for (size_t i = 0; i < (size_t)joint_num_; ++i) {
-      end_point.positions.push_back(ik_ans[i]);
-    }
+  std::vector<std::vector<double>> ik_ans(target_pos.size(), std::vector<double>());
+  bool is_ik_ok = true;
 
-    via_point.positions = end_point.positions;
+  for (size_t i = 0; i < target_pos.size(); ++i) {
+    is_ik_ok = ik.calcPositionIK(target_pos[i], rdou_base_pos_, ik_ans[i]);
+  }
+
+  if (is_ik_ok) {
+    publishIKlog(ik);
+    end_point.positions = ik_ans.back();
+    via_point2.positions = ik_ans.front();
+
+    via_point.positions = via_point2.positions;
     via_point.positions[3] = 0.0;
     via_point.positions[4] = rdou_base_pos_[4];
-
-    pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
-    pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
 
     trajectory_msgs::msg::JointTrajectoryPoint back_point;
     back_point = end_point;
     back_point.positions = via_point.positions;
-    back_point.time_from_start = second2duration(move_time_ * 3 / 2);
+    back_point.time_from_start = second2duration(move_time_ * 4 / 4);
+
+    pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
+    pushInterpolateTrajectoryPoints(jtm, via_point, via_point2, 100);
+    pushInterpolateTrajectoryPoints(jtm, via_point2, end_point, 100);
     pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
 
   } else {
