@@ -34,6 +34,7 @@ KenMissionManager::KenMissionManager()
   clock_(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)),
   tf2_buffer_(clock_),
   tf2_listener_(tf2_buffer_),
+  last_auto_finish_time_(),
   is_plan_received_(false)
 {
   this->declare_parameter("enable_button", -1);
@@ -203,8 +204,15 @@ void KenMissionManager::updateStatus(void)
     } break;
 
     case MissionState::AUTO_WAITING: {
+      rclcpp::Duration elasped = clock_->now() - last_auto_finish_time_;
+      // std::cout << rclcpp::Time(0) << "." << rclcpp::Time(0).nanoseconds() << std::endl;
+      // std::cout << last_auto_finish_time_.seconds() << "." << last_auto_finish_time_.nanoseconds()
+      //           << std::endl;
+      std::cout << elasped.seconds() << "." << elasped.nanoseconds() << std::endl;
       if (is_cancel_button_pushed_) {
         setMissionState(MissionState::WAITING);
+      } else if (elasped.seconds() >= 2) {
+        setMissionState(MissionState::AUTO_PLANNING);
       }
       // else if (!green_target_.poses.empty()) {
       //   setMissionState(MissionState::AUTO_PLANNING);
@@ -220,6 +228,7 @@ void KenMissionManager::updateStatus(void)
     case MissionState::AUTO_DURING_EXECUTION: {
       if (is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
         setMissionState(MissionState::AUTO_WAITING);
+        last_auto_finish_time_ = clock_->now();
         publishHoldMissionTrajectory();
       }
     } break;
@@ -327,6 +336,7 @@ void KenMissionManager::executeMission(void)
     } break;
 
     case MissionState::AUTO_WAITING: {
+      // do nothing
     } break;
 
     case MissionState::AUTO_PLANNING: {

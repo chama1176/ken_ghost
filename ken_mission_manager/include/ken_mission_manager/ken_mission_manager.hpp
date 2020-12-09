@@ -110,6 +110,7 @@ private:
 
   MissionState current_state_;
   ken_msgs::msg::MissionTrajectory recieved_mission_trajectory_;
+  rclcpp::Time last_auto_finish_time_;
 
   geometry_msgs::msg::PoseArray red_target_;
   geometry_msgs::msg::PoseArray blue_target_;
