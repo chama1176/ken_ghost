@@ -271,6 +271,7 @@ bool KenPathPlanner::makeMenTrajectory(
     pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
     pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
 
+    // TODO: ほんとは別のtrajectoryにしたほうが良い
     trajectory_msgs::msg::JointTrajectoryPoint back_point;
     back_point = end_point;
     back_point.positions = via_point.positions;
