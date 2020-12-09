@@ -15,4 +15,4 @@ ken_path_planner:
 
     joint_num: 5
 
-    move_time: 0.5
+    move_time: 5.5
