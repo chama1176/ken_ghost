@@ -249,7 +249,7 @@ bool KenPathPlanner::makeMenTrajectory(
   start_point.positions = current_pos;
 
   trajectory_msgs::msg::JointTrajectoryPoint via_point;
-  via_point.time_from_start = second2duration(move_time_ / 2);
+  via_point.time_from_start = second2duration(move_time_ / 2.0);
 
   trajectory_msgs::msg::JointTrajectoryPoint end_point;
   end_point.time_from_start = second2duration(move_time_);
@@ -274,7 +274,7 @@ bool KenPathPlanner::makeMenTrajectory(
     trajectory_msgs::msg::JointTrajectoryPoint back_point;
     back_point = end_point;
     back_point.positions = via_point.positions;
-    back_point.time_from_start = second2duration(move_time_ * 3 / 2);
+    back_point.time_from_start = second2duration(move_time_ * 3.0 / 2.0);
     pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
 
   } else {

@@ -39,9 +39,10 @@ private:
 
   trajectory_msgs::msg::JointTrajectory last_joint_trajectory_;
   double goal_thes_;
+  int goal_status_count_;
 };
 
-KenGoalChecker::KenGoalChecker() : Node("ken_goal_checker_node")
+KenGoalChecker::KenGoalChecker() : Node("ken_goal_checker_node"), goal_status_count_(0)
 {
   goal_state_pub_ = this->create_publisher<std_msgs::msg::Bool>("goal_status", 1);
 
@@ -61,21 +62,30 @@ KenGoalChecker::~KenGoalChecker() {}
 
 void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-  std_msgs::msg::Bool is_goal;
-  is_goal.data = true;
-
+  bool is_goal_now = true;
   if (
     !last_joint_trajectory_.points.empty() && !msg->position.empty() &&
     last_joint_trajectory_.points.back().positions.size() == msg->position.size()) {
     for (size_t i = 0; i < msg->position.size(); ++i) {
       bool is_in_range =
         std::abs(msg->position[i] - last_joint_trajectory_.points.back().positions[i]) < goal_thes_;
-      is_goal.data &= is_in_range;
+      is_goal_now &= is_in_range;
     }
 
   } else {
-    is_goal.data = false;
+    is_goal_now = false;
   }
+
+  if (is_goal_now)
+    ++goal_status_count_;
+  else
+    goal_status_count_ = 0;
+
+  std_msgs::msg::Bool is_goal;
+  if (goal_status_count_ >= 10)
+    is_goal.data = true;
+  else
+    is_goal.data = false;
 
   goal_state_pub_->publish(is_goal);
 }
