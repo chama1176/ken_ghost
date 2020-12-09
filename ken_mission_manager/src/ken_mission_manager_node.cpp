@@ -52,6 +52,9 @@ KenMissionManager::KenMissionManager()
   this->declare_parameter("auto_button", -1);
   this->get_parameter("auto_button", auto_button_);
 
+  this->declare_parameter("cancel_button", -1);
+  this->get_parameter("cancel_button", cancel_button_);
+
   this->declare_parameter("move_time", 0.0);
   this->get_parameter("move_time", move_time_);
 
@@ -62,6 +65,7 @@ KenMissionManager::KenMissionManager()
   RCLCPP_INFO(this->get_logger(), "Men button: %d", men_button_);
   RCLCPP_INFO(this->get_logger(), "Dou button: %d", dou_button_);
   RCLCPP_INFO(this->get_logger(), "Auto button: %d", auto_button_);
+  RCLCPP_INFO(this->get_logger(), "Cancel button: %d", cancel_button_);
 
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
 
@@ -127,6 +131,9 @@ void KenMissionManager::joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
 
   if (is_in_range(auto_button_, 0, msg_buttons_size))
     is_auto_button_pushed_ = msg->buttons[auto_button_];
+
+  if (is_in_range(cancel_button_, 0, msg_buttons_size))
+    is_cancel_button_pushed_ = msg->buttons[cancel_button_];
 }
 
 void KenMissionManager::mission_trajectory_callback(
@@ -196,9 +203,12 @@ void KenMissionManager::updateStatus(void)
     } break;
 
     case MissionState::AUTO_WAITING: {
-      if (!green_target_.poses.empty()) {
-        setMissionState(MissionState::AUTO_PLANNING);
+      if (is_cancel_button_pushed_) {
+        setMissionState(MissionState::WAITING);
       }
+      // else if (!green_target_.poses.empty()) {
+      //   setMissionState(MissionState::AUTO_PLANNING);
+      // }
     } break;
 
     case MissionState::AUTO_PLANNING: {
@@ -209,7 +219,7 @@ void KenMissionManager::updateStatus(void)
 
     case MissionState::AUTO_DURING_EXECUTION: {
       if (is_goal_ && is_plan_received_ && recieved_mission_trajectory_.trajectories.empty()) {
-        setMissionState(MissionState::WAITING);
+        setMissionState(MissionState::AUTO_WAITING);
         publishHoldMissionTrajectory();
       }
     } break;
@@ -281,6 +291,8 @@ void KenMissionManager::updateStatusWaiting(void)
     setMissionState(MissionState::DURING_EXECUTION);
   } else if (is_auto_button_pushed_) {
     setMissionState(MissionState::AUTO_WAITING);
+  } else if (!green_target_.poses.empty()) {
+    setMissionState(MissionState::AUTO_PLANNING);
   }
 }
 

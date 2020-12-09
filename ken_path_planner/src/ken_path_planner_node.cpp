@@ -303,6 +303,7 @@ bool KenPathPlanner::makeRDouTrajectory(
 
   Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
 
+  // TODO: 一旦横方向におろしてから狙う
   KenIK ik;
   std::vector<double> ik_ans;
   if (ik.calcPositionIK(target_pos, rdou_base_pos_, ik_ans)) {

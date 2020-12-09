@@ -122,6 +122,7 @@ private:
   int64_t men_button_;
   int64_t dou_button_;
   int64_t auto_button_;
+  int64_t cancel_button_;
 
   bool is_enable_button_pushed_;
   bool is_move_home_button_pushed_;
@@ -129,6 +130,7 @@ private:
   bool is_men_button_pushed_;
   bool is_dou_button_pushed_;
   bool is_auto_button_pushed_;
+  bool is_cancel_button_pushed_;
 
   bool is_plan_received_;
   bool is_goal_;
