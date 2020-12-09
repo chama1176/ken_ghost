@@ -27,6 +27,7 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 find_package(ken_msgs REQUIRED)
 
@@ -37,7 +38,7 @@ include_directories(include ${EIGEN3_INCLUDE_DIR})
 add_executable(ken_path_planner
   src/ken_path_planner_node.cpp src/ken_fk.cpp src/ken_ik.cpp)
 
-ament_target_dependencies(ken_path_planner rclcpp std_msgs sensor_msgs geometry_msgs trajectory_msgs ken_msgs) 
+ament_target_dependencies(ken_path_planner rclcpp std_msgs sensor_msgs geometry_msgs trajectory_msgs nav_msgs ken_msgs) 
 
 install(TARGETS
   ken_path_planner

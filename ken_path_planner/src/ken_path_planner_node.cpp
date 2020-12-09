@@ -27,75 +27,7 @@
 #include "ken_msgs/msg/mission_trajectory.hpp"
 #include "ken_path_planner/ken_fk.hpp"
 #include "ken_path_planner/ken_ik.hpp"
-
-using std::placeholders::_1;
-
-class KenPathPlanner : public rclcpp::Node
-{
-public:
-  /* 
-  * コンストラクタ
-  */
-  KenPathPlanner();
-  /*
-  * デストラクタ
-  */
-  ~KenPathPlanner();
-
-private:
-  bool makeCurrentPosTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
-  bool makeMoveHomeTrajectory(
-    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos);
-  bool makeMoveKamaeTrajectory(
-    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos);
-  bool makeMenTrajectory(
-    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
-    const geometry_msgs::msg::Pose pose);
-  bool makeRDouTrajectory(
-    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
-    const geometry_msgs::msg::Pose pose);
-
-  bool makeMenAfterTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
-
-  void pushInterpolateTrajectoryPoints(
-    trajectory_msgs::msg::JointTrajectory & jtm,
-    const trajectory_msgs::msg::JointTrajectoryPoint start,
-    const trajectory_msgs::msg::JointTrajectoryPoint end, int interpolate_num);
-
-  void publishIKlog(const KenIK & ik);
-
-  void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg);
-  void mission_target_callback(const ken_msgs::msg::MissionTargetArray::SharedPtr msg);
-
-  inline builtin_interfaces::msg::Duration second2duration(const double & second)
-  {
-    builtin_interfaces::msg::Duration duration;
-    duration.sec = static_cast<int32_t>(second);
-    duration.nanosec = static_cast<int32_t>((second - static_cast<double>(duration.sec)) * 1e9);
-
-    return duration;
-  }
-
-  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr cmd_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr fk_debug_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr ik_debug_pose_pub_;
-
-  rclcpp::Publisher<ken_msgs::msg::MissionTrajectory>::SharedPtr mission_trajectory_pub_;
-
-  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
-
-  rclcpp::Subscription<ken_msgs::msg::MissionTargetArray>::SharedPtr mission_target_sub_;
-
-  int64_t joint_num_;
-  double move_time_;
-
-  const std::string base_frame_id_;
-
-  std::vector<std::string> name_vec_;
-  std::vector<double> current_pos_;
-  std::vector<double> kamae_pos_;
-  const std::vector<double> rdou_base_pos_ = {0.0, M_PI_2, -M_PI_2, -M_PI_2, M_PI_4};
-};
+#include "ken_path_planner/ken_path_planner.hpp"
 
 KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("base_link")
 {
@@ -129,6 +61,9 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   cmd_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "ken_joint_trajectory_controller/joint_trajectory", 1);
   ik_debug_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("debug/ik_pose", 1);
+  path_debug_pose_pub_ =
+    this->create_publisher<geometry_msgs::msg::PoseArray>("debug/path_pose", 1);
+  path_debug_pub_ = this->create_publisher<nav_msgs::msg::Path>("debug/path", 1);
 
   mission_trajectory_pub_ =
     this->create_publisher<ken_msgs::msg::MissionTrajectory>("mission_trajectory", 1);
@@ -329,6 +264,30 @@ bool KenPathPlanner::makeRDouTrajectory(
     pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
     pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
     pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
+
+    // debug output
+    // TODO: Posearray is unused
+    geometry_msgs::msg::PoseArray debug_path_pose;
+    debug_path_pose.header.frame_id = base_frame_id_;
+    debug_path_pose.header.stamp = rclcpp::Time(0);
+    KenFK fk(start_point.positions);
+    debug_path_pose.poses.push_back(transform2pose(fk.computeTbe()));
+    fk = KenFK(via_point.positions);
+    debug_path_pose.poses.push_back(transform2pose(fk.computeTbe()));
+    fk = KenFK(end_point.positions);
+    debug_path_pose.poses.push_back(transform2pose(fk.computeTbe()));
+
+    nav_msgs::msg::Path debug_path;
+    debug_path.header = debug_path_pose.header;
+    for (size_t i = 0; i < debug_path_pose.poses.size(); ++i) {
+      geometry_msgs::msg::PoseStamped pps;
+      pps.header = debug_path_pose.header;
+      pps.pose = debug_path_pose.poses[i];
+      debug_path.poses.push_back(pps);
+    }
+
+    path_debug_pose_pub_->publish(debug_path_pose);
+    path_debug_pub_->publish(debug_path);
 
   } else {
     return false;
