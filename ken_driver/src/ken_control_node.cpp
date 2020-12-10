@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
                                               "arm_link4_to_shinai_link"};
   std::vector<uint8_t> joint_id_list = {21, 22, 23, 24, 25};
   std::vector<uint16_t> p_gain = {800, 1000, 1000, 800, 800};
-  std::vector<uint16_t> i_gain = {100, 200, 200, 100, 100};
+  std::vector<uint16_t> i_gain = {100, 200, 200, 200, 100};
   std::vector<uint16_t> d_gain = {100, 200, 200, 100, 100};
 
   // initialize the robot
