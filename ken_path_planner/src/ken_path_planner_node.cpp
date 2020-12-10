@@ -34,6 +34,11 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
   this->declare_parameter("joint_num", -1);
   this->get_parameter("joint_num", joint_num_);
 
+  this->declare_parameter("men_time", 0.0);
+  this->get_parameter("men_time", men_time_);
+  this->declare_parameter("dou_time", 0.0);
+  this->get_parameter("dou_time", dou_time_);
+
   this->declare_parameter("move_time", 0.0);
   this->get_parameter("move_time", move_time_);
 
@@ -54,6 +59,9 @@ KenPathPlanner::KenPathPlanner() : Node("ken_path_planner"), base_frame_id_("bas
       RCLCPP_INFO(this->get_logger(), "Axis %d %s", i, name_vec_[i].c_str());
     }
   }
+
+  RCLCPP_INFO(this->get_logger(), "Men time: %f", men_time_);
+  RCLCPP_INFO(this->get_logger(), "Dou time: %f", dou_time_);
 
   RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
   RCLCPP_INFO(this->get_logger(), "Joint num: %d", joint_num_);
@@ -152,26 +160,6 @@ bool KenPathPlanner::makeMoveKamaeTrajectory(
   return true;
 }
 
-bool KenPathPlanner::makeMenAfterTrajectory(trajectory_msgs::msg::JointTrajectory & jtm)
-{
-  jtm.header.stamp = rclcpp::Time(0);
-  jtm.joint_names = name_vec_;
-
-  trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start = second2duration(0.0);
-  start_point.positions = current_pos_;
-
-  trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start = second2duration(move_time_);
-  end_point.positions = start_point.positions;
-  end_point.positions[3] = 0.0;
-  end_point.positions[4] = 0.0;
-
-  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
-
-  return true;
-}
-
 bool KenPathPlanner::makeMenTrajectory(
   trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
   const geometry_msgs::msg::Pose pose)
@@ -179,15 +167,15 @@ bool KenPathPlanner::makeMenTrajectory(
   jtm.header.stamp = rclcpp::Time(0);
   jtm.joint_names = name_vec_;
 
-  trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start = second2duration(0.0);
-  start_point.positions = current_pos;
+  std::vector<trajectory_msgs::msg::JointTrajectoryPoint> path_points(
+    4, trajectory_msgs::msg::JointTrajectoryPoint());
 
-  trajectory_msgs::msg::JointTrajectoryPoint via_point;
-  via_point.time_from_start = second2duration(move_time_ * 1.0 / 3.0);
+  for (size_t i = 0; i < path_points.size(); ++i) {
+    path_points[i].time_from_start =
+      second2duration(men_time_ * (double)i / (double)(path_points.size() - 1));
+  }
 
-  trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start = second2duration(move_time_ * 2.0 / 3.0);
+  path_points[0].positions = current_pos;
 
   Eigen::Vector3d target_pos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
 
@@ -195,23 +183,18 @@ bool KenPathPlanner::makeMenTrajectory(
   std::vector<double> ik_ans;
   if (ik.calcPositionIK(target_pos, kamae_pos_, ik_ans)) {
     publishIKlog(ik);
-    for (size_t i = 0; i < (size_t)joint_num_; ++i) {
-      end_point.positions.push_back(ik_ans[i]);
+
+    path_points[1].positions = ik_ans;
+    path_points[1].positions[3] = 0.0;
+    path_points[1].positions[4] = 0.0;
+
+    path_points[2].positions = ik_ans;
+
+    path_points[3].positions = path_points[1].positions;
+
+    for (size_t j = 0; j + 1 < path_points.size(); ++j) {
+      pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 100);
     }
-
-    via_point.positions = end_point.positions;
-    via_point.positions[3] = 0.0;
-    via_point.positions[4] = 0.0;
-
-    pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
-    pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
-
-    // TODO: ほんとは別のtrajectoryにしたほうが良い
-    trajectory_msgs::msg::JointTrajectoryPoint back_point;
-    back_point = end_point;
-    back_point.positions = via_point.positions;
-    back_point.time_from_start = second2duration(move_time_ * 3.0 / 3.0);
-    pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
 
   } else {
     return false;
@@ -232,7 +215,7 @@ bool KenPathPlanner::makeRDouTrajectory(
 
   for (size_t i = 0; i < path_points.size(); ++i) {
     path_points[i].time_from_start =
-      second2duration(move_time_ * (double)i / (double)(path_points.size() - 1));
+      second2duration(dou_time_ * (double)i / (double)(path_points.size() - 1));
   }
 
   path_points[0].positions = current_pos;

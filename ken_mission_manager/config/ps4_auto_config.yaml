@@ -9,5 +9,3 @@ ken_mission_manager:
 
     auto_button: 1  # circle button
     cancel_button: 0  # cross button
-
-    move_time: 0.5

@@ -136,8 +136,6 @@ private:
   bool is_plan_received_;
   bool is_goal_;
 
-  double move_time_;
-
   rclcpp::TimerBase::SharedPtr timer_;
 };
 

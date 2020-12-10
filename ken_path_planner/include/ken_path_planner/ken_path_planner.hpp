@@ -59,8 +59,6 @@ private:
     trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
     const geometry_msgs::msg::Pose pose);
 
-  bool makeMenAfterTrajectory(trajectory_msgs::msg::JointTrajectory & jtm);
-
   void pushInterpolateTrajectoryPoints(
     trajectory_msgs::msg::JointTrajectory & jtm,
     const trajectory_msgs::msg::JointTrajectoryPoint start,
@@ -107,6 +105,8 @@ private:
   rclcpp::Subscription<ken_msgs::msg::MissionTargetArray>::SharedPtr mission_target_sub_;
 
   int64_t joint_num_;
+  double men_time_;
+  double dou_time_;
   double move_time_;
 
   const std::string base_frame_id_;

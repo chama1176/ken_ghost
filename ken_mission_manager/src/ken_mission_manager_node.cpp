@@ -56,9 +56,6 @@ KenMissionManager::KenMissionManager()
   this->declare_parameter("cancel_button", -1);
   this->get_parameter("cancel_button", cancel_button_);
 
-  this->declare_parameter("move_time", 0.0);
-  this->get_parameter("move_time", move_time_);
-
   RCLCPP_INFO(this->get_logger(), "Teleop enable button: %d", enable_button_);
   RCLCPP_INFO(this->get_logger(), "Move home button: %d", move_home_button_);
   RCLCPP_INFO(this->get_logger(), "Move kamae button: %d", move_kamae_button_);
@@ -67,8 +64,6 @@ KenMissionManager::KenMissionManager()
   RCLCPP_INFO(this->get_logger(), "Dou button: %d", dou_button_);
   RCLCPP_INFO(this->get_logger(), "Auto button: %d", auto_button_);
   RCLCPP_INFO(this->get_logger(), "Cancel button: %d", cancel_button_);
-
-  RCLCPP_INFO(this->get_logger(), "Move time: %f", move_time_);
 
   cmd_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "ken_joint_trajectory_controller/joint_trajectory", 1);
