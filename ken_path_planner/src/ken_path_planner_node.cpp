@@ -168,7 +168,7 @@ bool KenPathPlanner::makeMenTrajectory(
   jtm.joint_names = name_vec_;
 
   std::vector<trajectory_msgs::msg::JointTrajectoryPoint> path_points(
-    4, trajectory_msgs::msg::JointTrajectoryPoint());
+    5, trajectory_msgs::msg::JointTrajectoryPoint());
 
   for (size_t i = 0; i < path_points.size(); ++i) {
     path_points[i].time_from_start =
@@ -189,8 +189,9 @@ bool KenPathPlanner::makeMenTrajectory(
     path_points[1].positions[4] = 0.0;
 
     path_points[2].positions = ik_ans;
+    path_points[3].positions = ik_ans;
 
-    path_points[3].positions = path_points[1].positions;
+    path_points[4].positions = path_points[1].positions;
 
     for (size_t j = 0; j + 1 < path_points.size(); ++j) {
       pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 100);

@@ -86,7 +86,7 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
     goal_status_count_ = 0;
 
   std_msgs::msg::Bool is_goal;
-  if (goal_status_count_ >= 10)
+  if (goal_status_count_ >= 5)
     is_goal.data = true;
   else
     is_goal.data = false;
