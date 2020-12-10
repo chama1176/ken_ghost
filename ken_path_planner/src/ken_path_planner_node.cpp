@@ -227,19 +227,19 @@ bool KenPathPlanner::makeRDouTrajectory(
   jtm.header.stamp = rclcpp::Time(0);
   jtm.joint_names = name_vec_;
 
-  trajectory_msgs::msg::JointTrajectoryPoint start_point;
-  start_point.time_from_start = second2duration(0.0);
-  start_point.positions = current_pos;
+  std::vector<trajectory_msgs::msg::JointTrajectoryPoint> path_points(
+    6, trajectory_msgs::msg::JointTrajectoryPoint());
 
-  trajectory_msgs::msg::JointTrajectoryPoint via_point;
-  via_point.time_from_start = second2duration(move_time_ / 3.0);
+  for (size_t i = 0; i < path_points.size(); ++i) {
+    path_points[i].time_from_start =
+      second2duration(move_time_ * (double)i / (double)(path_points.size() - 1));
+  }
 
-  trajectory_msgs::msg::JointTrajectoryPoint end_point;
-  end_point.time_from_start = second2duration(move_time_ * 2.0 / 3.0);
+  path_points[0].positions = current_pos;
 
   std::vector<Eigen::Vector3d> target_pos;
   target_pos.push_back(
-    Eigen::Vector3d(pose.position.x, pose.position.y - 0.1, pose.position.z + 0.05));
+    Eigen::Vector3d(pose.position.x, pose.position.y - 0.1, pose.position.z + 0.15));
   target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
 
   KenIK ik;
@@ -252,42 +252,36 @@ bool KenPathPlanner::makeRDouTrajectory(
 
   if (is_ik_ok) {
     publishIKlog(ik);
-    end_point.positions = ik_ans.back();
 
-    via_point.positions = ik_ans.front();
-    via_point.positions[3] = 0.0;
-    via_point.positions[4] = rdou_base_pos_[4];
+    path_points[1].positions = ik_ans[0];
+    path_points[1].positions[3] = 0.0;
+    path_points[1].positions[4] = rdou_base_pos_[4];
 
-    trajectory_msgs::msg::JointTrajectoryPoint back_point;
-    back_point.positions = via_point.positions;
-    back_point.time_from_start = second2duration(move_time_ * 3 / 3);
+    path_points[2].positions = ik_ans[0];
 
-    pushInterpolateTrajectoryPoints(jtm, start_point, via_point, 100);
-    pushInterpolateTrajectoryPoints(jtm, via_point, end_point, 100);
-    pushInterpolateTrajectoryPoints(jtm, end_point, back_point, 100);
+    path_points[3].positions = ik_ans.back();
+
+    path_points[4].positions = path_points[2].positions;
+
+    path_points[5].positions = path_points[1].positions;
+
+    for (size_t j = 0; j + 1 < path_points.size(); ++j) {
+      pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 100);
+    }
 
     // debug output
-    // TODO: Posearray is unused
-    geometry_msgs::msg::PoseArray debug_path_pose;
-    debug_path_pose.header.frame_id = base_frame_id_;
-    debug_path_pose.header.stamp = rclcpp::Time(0);
-    KenFK fk(start_point.positions);
-    debug_path_pose.poses.push_back(transform2pose(fk.computeTbe()));
-    fk = KenFK(via_point.positions);
-    debug_path_pose.poses.push_back(transform2pose(fk.computeTbe()));
-    fk = KenFK(end_point.positions);
-    debug_path_pose.poses.push_back(transform2pose(fk.computeTbe()));
-
     nav_msgs::msg::Path debug_path;
-    debug_path.header = debug_path_pose.header;
-    for (size_t i = 0; i < debug_path_pose.poses.size(); ++i) {
+    debug_path.header.frame_id = base_frame_id_;
+    debug_path.header.stamp = rclcpp::Time(0);
+
+    for (size_t i = 0; i < path_points.size(); ++i) {
+      KenFK fk(path_points[i].positions);
       geometry_msgs::msg::PoseStamped pps;
-      pps.header = debug_path_pose.header;
-      pps.pose = debug_path_pose.poses[i];
+      pps.header = debug_path.header;
+      pps.pose = transform2pose(fk.computeTbe());
       debug_path.poses.push_back(pps);
     }
 
-    path_debug_pose_pub_->publish(debug_path_pose);
     path_debug_pub_->publish(debug_path);
 
   } else {

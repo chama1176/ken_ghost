@@ -70,6 +70,10 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
       bool is_in_range =
         std::abs(msg->position[i] - last_joint_trajectory_.points.back().positions[i]) < goal_thes_;
       is_goal_now &= is_in_range;
+      if (!is_in_range) {
+        std::cout << i << " : " << msg->position[i] << " : "
+                  << last_joint_trajectory_.points.back().positions[i] << std::endl;
+      }
     }
 
   } else {
