@@ -114,7 +114,7 @@ private:
   std::vector<std::string> name_vec_;
   std::vector<double> current_pos_;
   std::vector<double> kamae_pos_;
-  const std::vector<double> rdou_base_pos_ = {0.0, M_PI_2, -M_PI_2, -M_PI_2, M_PI_4};
+  const std::vector<double> rdou_base_pos_ = {-M_PI_4, M_PI_2, -M_PI_2, -M_PI_2, -M_PI_4};
 };
 
 #endif  // KEN_PATH_PLANNER_HPP_

@@ -60,6 +60,38 @@ bool KenDriver::torque_enable(const bool enable)
   return retval;
 }
 
+bool KenDriver::set_gain_all(
+  const std::vector<uint16_t> & p, const std::vector<uint16_t> & i, const std::vector<uint16_t> & d)
+{
+  bool retval = true;
+  for (size_t k = 0; k < id_list_.size(); ++k) {
+    uint8_t dxl_error = 0;
+    int dxl_result;
+    dxl_result = dxl_packet_handler_->write2ByteTxRx(
+      dxl_port_handler_.get(), id_list_[k], ADDR_POSITION_P_GAIN, p[k], &dxl_error);
+
+    if (!parse_dxl_error(std::string(__func__), id_list_[k], dxl_result, dxl_error)) {
+      retval = false;
+    }
+
+    dxl_result = dxl_packet_handler_->write2ByteTxRx(
+      dxl_port_handler_.get(), id_list_[k], ADDR_POSITION_I_GAIN, i[k], &dxl_error);
+
+    if (!parse_dxl_error(std::string(__func__), id_list_[k], dxl_result, dxl_error)) {
+      retval = false;
+    }
+
+    dxl_result = dxl_packet_handler_->write2ByteTxRx(
+      dxl_port_handler_.get(), id_list_[k], ADDR_POSITION_D_GAIN, d[k], &dxl_error);
+
+    if (!parse_dxl_error(std::string(__func__), id_list_[k], dxl_result, dxl_error)) {
+      retval = false;
+    }
+  }
+
+  return retval;
+}
+
 bool KenDriver::add_sync_read_param(void)
 {
   bool retval = true;

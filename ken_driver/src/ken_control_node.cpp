@@ -24,10 +24,13 @@ int main(int argc, char * argv[])
                                               "arm_link2_to_arm_link3", "arm_link3_to_arm_link4",
                                               "arm_link4_to_shinai_link"};
   std::vector<uint8_t> joint_id_list = {21, 22, 23, 24, 25};
+  std::vector<uint16_t> p_gain = {800, 1000, 1000, 800, 800};
+  std::vector<uint16_t> i_gain = {100, 200, 200, 100, 100};
+  std::vector<uint16_t> d_gain = {100, 200, 200, 100, 100};
 
   // initialize the robot
   if (
-    my_robot->init("/dev/ttyUSB0", 57600, joint_id_list, joint_name_list) !=
+    my_robot->init("/dev/ttyUSB0", 57600, joint_id_list, joint_name_list, p_gain, i_gain, d_gain) !=
     hardware_interface::HW_RET_OK) {
     fprintf(stderr, "failed to initialized ken hardware\n");
     return -1;

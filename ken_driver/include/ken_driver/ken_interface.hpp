@@ -21,7 +21,8 @@ public:
   hardware_interface::hardware_interface_ret_t init();
   hardware_interface::hardware_interface_ret_t init(
     const std::string & port_name, const int baudrate, const std::vector<uint8_t> & dxl_id_list,
-    const std::vector<std::string> & joint_name_list);
+    const std::vector<std::string> & joint_name_list, const std::vector<uint16_t> & p_gain,
+    const std::vector<uint16_t> & i_gain, const std::vector<uint16_t> & d_gain);
   hardware_interface::hardware_interface_ret_t read();
   hardware_interface::hardware_interface_ret_t write();
 

@@ -21,11 +21,17 @@ hardware_interface::hardware_interface_ret_t KenInterface::init()
 
 hardware_interface::hardware_interface_ret_t KenInterface::init(
   const std::string & port_name, const int baudrate, const std::vector<uint8_t> & dxl_id_list,
-  const std::vector<std::string> & joint_name_list)
+  const std::vector<std::string> & joint_name_list, const std::vector<uint16_t> & p_gain,
+  const std::vector<uint16_t> & i_gain, const std::vector<uint16_t> & d_gain)
 {
   driver_ = std::make_shared<KenDriver>(port_name, baudrate, dxl_id_list);
 
   if (!driver_->open_port()) {
+    RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
+    return hardware_interface::HW_RET_ERROR;
+  }
+
+  if (!driver_->set_gain_all(p_gain, i_gain, d_gain)) {
     RCLCPP_ERROR(LOGGER, driver_->get_last_error_log());
     return hardware_interface::HW_RET_ERROR;
   }

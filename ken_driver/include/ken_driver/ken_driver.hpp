@@ -15,6 +15,9 @@ public:
   bool open_port(void);
   void close_port(void);
   bool torque_enable(const bool enable);
+  bool set_gain_all(
+    const std::vector<uint16_t> & p, const std::vector<uint16_t> & i,
+    const std::vector<uint16_t> & d);
   bool add_sync_read_param(void);
   bool sync_read_present_positions(std::vector<double> * joint_positions);
   bool sync_write_goal_positions(const std::vector<double> & goal_positions);
@@ -31,6 +34,10 @@ private:
   // Dynamixel XM430-W350 address table
   // Ref: https://emanual.robotis.com/docs/en/dxl/x/xm430-w350/
   static constexpr uint16_t ADDR_TORQUE_ENABLE = 64;
+  static constexpr uint16_t ADDR_POSITION_D_GAIN = 80;
+  static constexpr uint16_t ADDR_POSITION_I_GAIN = 82;
+  static constexpr uint16_t ADDR_POSITION_P_GAIN = 84;
+
   static constexpr uint16_t ADDR_GOAL_POSITION = 116;
   static constexpr uint16_t ADDR_PRESENT_POSITION = 132;
 
