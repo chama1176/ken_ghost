@@ -238,7 +238,8 @@ bool KenPathPlanner::makeRDouTrajectory(
   end_point.time_from_start = second2duration(move_time_ * 2.0 / 3.0);
 
   std::vector<Eigen::Vector3d> target_pos;
-  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y - 0.15, pose.position.z));
+  target_pos.push_back(
+    Eigen::Vector3d(pose.position.x, pose.position.y - 0.1, pose.position.z + 0.05));
   target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
 
   KenIK ik;

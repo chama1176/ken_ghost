@@ -290,6 +290,9 @@ void KenMissionManager::updateStatusWaiting(void)
       geometry_msgs::msg::PoseStamped target_transformed;
       geometry_msgs::msg::PoseStamped target_pose;
       target_pose.pose = blue_target_.poses.front();
+      for (geometry_msgs::msg::Pose bp : blue_target_.poses) {
+        if (bp.position.x > target_pose.pose.position.x) target_pose.pose = bp;
+      }
       target_pose.header = blue_target_.header;
       tf2::doTransform(target_pose, target_transformed, s2b_transform_);
       mta.type.push_back(mta.RDOU);
@@ -388,6 +391,9 @@ void KenMissionManager::execAutoPlanning(void)
       geometry_msgs::msg::PoseStamped target_transformed;
       geometry_msgs::msg::PoseStamped target_pose;
       target_pose.pose = blue_target_.poses.front();
+      for (geometry_msgs::msg::Pose bp : blue_target_.poses) {
+        if (bp.position.x > target_pose.pose.position.x) target_pose.pose = bp;
+      }
       target_pose.header = blue_target_.header;
       tf2::doTransform(target_pose, target_transformed, s2b_transform_);
       mta.type.push_back(mta.RDOU);
