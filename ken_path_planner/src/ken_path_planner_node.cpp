@@ -170,10 +170,11 @@ bool KenPathPlanner::makeMenTrajectory(
   std::vector<trajectory_msgs::msg::JointTrajectoryPoint> path_points(
     5, trajectory_msgs::msg::JointTrajectoryPoint());
 
-  for (size_t i = 0; i < path_points.size(); ++i) {
-    path_points[i].time_from_start =
-      second2duration(men_time_ * (double)i / (double)(path_points.size() - 1));
-  }
+  path_points[0].time_from_start = second2duration(0.0);
+  path_points[1].time_from_start = second2duration(men_time_ * 0.3);
+  path_points[2].time_from_start = second2duration(men_time_ * 0.6);
+  path_points[3].time_from_start = second2duration(men_time_ * 0.7);
+  path_points[4].time_from_start = second2duration(men_time_ * 1.0);
 
   path_points[0].positions = current_pos;
 
