@@ -81,6 +81,8 @@ private:
   void updateStatusWaiting(void);
 
   void execAutoPlanning(void);
+  void pushbackDou(ken_msgs::msg::MissionTargetArray & mta);
+  void pushbackRDou(ken_msgs::msg::MissionTargetArray & mta);
 
   inline bool is_in_range(const int & value, const int & min, const int & max)
   {

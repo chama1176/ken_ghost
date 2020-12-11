@@ -282,13 +282,15 @@ void KenMissionManager::updateStatusWaiting(void)
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
     if (!blue_target_.poses.empty()) {
-      geometry_msgs::msg::PoseStamped target_transformed;
-      geometry_msgs::msg::PoseStamped target_pose;
-      target_pose.pose = blue_target_.poses.front();
-      target_pose.header = blue_target_.header;
-      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-      mta.type.push_back(mta.DOU);
-      mta.poses.push_back(target_transformed.pose);
+      if (!red_target_.poses.empty() && !yellow_target_.poses.empty()) {
+        if (red_target_.poses.front().position.x < yellow_target_.poses.front().position.x) {
+          pushbackDou(mta);
+        } else {
+          pushbackRDou(mta);
+        }
+      } else {
+        pushbackRDou(mta);
+      }
     }
     mta.type.push_back(mta.KAMAE);
     mta.poses.push_back(geometry_msgs::msg::Pose());
@@ -378,16 +380,15 @@ void KenMissionManager::execAutoPlanning(void)
       mta.poses.push_back(target_transformed.pose);
     }
     if (!blue_target_.poses.empty()) {
-      geometry_msgs::msg::PoseStamped target_transformed;
-      geometry_msgs::msg::PoseStamped target_pose;
-      target_pose.pose = blue_target_.poses.front();
-      for (geometry_msgs::msg::Pose bp : blue_target_.poses) {
-        if (bp.position.x > target_pose.pose.position.x) target_pose.pose = bp;
+      if (!red_target_.poses.empty() && !yellow_target_.poses.empty()) {
+        if (red_target_.poses.front().position.x < yellow_target_.poses.front().position.x) {
+          pushbackDou(mta);
+        } else {
+          pushbackRDou(mta);
+        }
+      } else {
+        pushbackRDou(mta);
       }
-      target_pose.header = blue_target_.header;
-      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-      mta.type.push_back(mta.DOU);
-      mta.poses.push_back(target_transformed.pose);
     }
     if (!red_target_.poses.empty()) {
       geometry_msgs::msg::PoseStamped target_transformed;
@@ -399,16 +400,15 @@ void KenMissionManager::execAutoPlanning(void)
       mta.poses.push_back(target_transformed.pose);
     }
     if (!blue_target_.poses.empty()) {
-      geometry_msgs::msg::PoseStamped target_transformed;
-      geometry_msgs::msg::PoseStamped target_pose;
-      target_pose.pose = blue_target_.poses.front();
-      for (geometry_msgs::msg::Pose bp : blue_target_.poses) {
-        if (bp.position.x > target_pose.pose.position.x) target_pose.pose = bp;
+      if (!red_target_.poses.empty() && !yellow_target_.poses.empty()) {
+        if (red_target_.poses.front().position.x < yellow_target_.poses.front().position.x) {
+          pushbackDou(mta);
+        } else {
+          pushbackRDou(mta);
+        }
+      } else {
+        pushbackRDou(mta);
       }
-      target_pose.header = blue_target_.header;
-      tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-      mta.type.push_back(mta.DOU);
-      mta.poses.push_back(target_transformed.pose);
     }
 
     mta.type.push_back(mta.KAMAE);
@@ -417,6 +417,33 @@ void KenMissionManager::execAutoPlanning(void)
   } else {
     // Wait for planning finished
   }
+}
+
+void KenMissionManager::pushbackDou(ken_msgs::msg::MissionTargetArray & mta)
+{
+  geometry_msgs::msg::PoseStamped target_transformed;
+  geometry_msgs::msg::PoseStamped target_pose;
+  target_pose.pose = blue_target_.poses.front();
+  for (geometry_msgs::msg::Pose bp : blue_target_.poses) {
+    if (bp.position.x < target_pose.pose.position.x) target_pose.pose = bp;
+  }
+  target_pose.header = blue_target_.header;
+  tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+  mta.type.push_back(mta.DOU);
+  mta.poses.push_back(target_transformed.pose);
+}
+void KenMissionManager::pushbackRDou(ken_msgs::msg::MissionTargetArray & mta)
+{
+  geometry_msgs::msg::PoseStamped target_transformed;
+  geometry_msgs::msg::PoseStamped target_pose;
+  target_pose.pose = blue_target_.poses.front();
+  for (geometry_msgs::msg::Pose bp : blue_target_.poses) {
+    if (bp.position.x > target_pose.pose.position.x) target_pose.pose = bp;
+  }
+  target_pose.header = blue_target_.header;
+  tf2::doTransform(target_pose, target_transformed, s2b_transform_);
+  mta.type.push_back(mta.RDOU);
+  mta.poses.push_back(target_transformed.pose);
 }
 
 int main(int argc, char * argv[])
