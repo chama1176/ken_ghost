@@ -96,7 +96,7 @@ KenMissionManager::KenMissionManager()
     std::cerr << e.what() << '\n';
   }
 
-  timer_ = this->create_wall_timer(100ms, std::bind(&KenMissionManager::timerCallback, this));
+  timer_ = this->create_wall_timer(50ms, std::bind(&KenMissionManager::timerCallback, this));
 
   setMissionState(MissionState::WAITING);
   publishHoldMissionTrajectory();
@@ -202,10 +202,10 @@ void KenMissionManager::updateStatus(void)
 
     case MissionState::AUTO_WAITING: {
       rclcpp::Duration elasped = clock_->now() - last_auto_finish_time_;
-      std::cout << elasped.seconds() << "." << elasped.nanoseconds() << std::endl;
+      std::cout << elasped.seconds() << std::endl;
       if (is_cancel_button_pushed_) {
         setMissionState(MissionState::WAITING);
-      } else if (elasped.seconds() >= 2) {
+      } else if (elasped.seconds() >= 2.0) {
         setMissionState(MissionState::AUTO_PLANNING);
       }
     } break;
@@ -290,7 +290,7 @@ void KenMissionManager::updateStatusWaiting(void)
       }
       target_pose.header = blue_target_.header;
       tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-      mta.type.push_back(mta.RDOU);
+      mta.type.push_back(mta.DOU);
       mta.poses.push_back(target_transformed.pose);
     }
     mta.type.push_back(mta.KAMAE);
@@ -371,8 +371,6 @@ void KenMissionManager::execAutoPlanning(void)
   // TODO: Check target range
   if (is_plan_received_) {
     ken_msgs::msg::MissionTargetArray mta;
-    mta.type.push_back(mta.KAMAE);
-    mta.poses.push_back(geometry_msgs::msg::Pose());
     if (!red_target_.poses.empty()) {
       geometry_msgs::msg::PoseStamped target_transformed;
       geometry_msgs::msg::PoseStamped target_pose;
@@ -391,7 +389,7 @@ void KenMissionManager::execAutoPlanning(void)
       }
       target_pose.header = blue_target_.header;
       tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-      mta.type.push_back(mta.RDOU);
+      mta.type.push_back(mta.DOU);
       mta.poses.push_back(target_transformed.pose);
     }
     if (!red_target_.poses.empty()) {
@@ -412,7 +410,7 @@ void KenMissionManager::execAutoPlanning(void)
       }
       target_pose.header = blue_target_.header;
       tf2::doTransform(target_pose, target_transformed, s2b_transform_);
-      mta.type.push_back(mta.RDOU);
+      mta.type.push_back(mta.DOU);
       mta.poses.push_back(target_transformed.pose);
     }
 

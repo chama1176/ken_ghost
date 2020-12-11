@@ -58,6 +58,9 @@ private:
   bool makeRDouTrajectory(
     trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
     const geometry_msgs::msg::Pose pose);
+  bool makeDouTrajectory(
+    trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
+    const geometry_msgs::msg::Pose pose);
 
   void pushInterpolateTrajectoryPoints(
     trajectory_msgs::msg::JointTrajectory & jtm,
@@ -114,6 +117,7 @@ private:
   std::vector<std::string> name_vec_;
   std::vector<double> current_pos_;
   std::vector<double> kamae_pos_;
+  const std::vector<double> dou_base_pos_ = {M_PI_4, M_PI_2, -M_PI_2, -M_PI_2, M_PI_4};
   const std::vector<double> rdou_base_pos_ = {-M_PI_4, M_PI_2, -M_PI_2, -M_PI_2, -M_PI_4};
 };
 

@@ -90,7 +90,7 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
     is_goal.data = true;
   else
     is_goal.data = false;
-
+  //TODO: 位置がずっと変わらない場合trueとする
   goal_state_pub_->publish(is_goal);
 }
 

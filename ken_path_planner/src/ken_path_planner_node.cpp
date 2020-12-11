@@ -136,7 +136,7 @@ bool KenPathPlanner::makeMoveHomeTrajectory(
   end_point.time_from_start = second2duration(move_time_);
   end_point.positions = std::vector<double>(6, 0.0);
 
-  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
+  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 20);
 
   return true;
 }
@@ -155,7 +155,7 @@ bool KenPathPlanner::makeMoveKamaeTrajectory(
   end_point.time_from_start = second2duration(move_time_);
   end_point.positions = kamae_pos_;
 
-  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 100);
+  pushInterpolateTrajectoryPoints(jtm, start_point, end_point, 20);
 
   return true;
 }
@@ -195,7 +195,7 @@ bool KenPathPlanner::makeMenTrajectory(
     path_points[4].positions = path_points[1].positions;
 
     for (size_t j = 0; j + 1 < path_points.size(); ++j) {
-      pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 100);
+      pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 20);
     }
 
   } else {
@@ -253,7 +253,80 @@ bool KenPathPlanner::makeRDouTrajectory(
     path_points[5].positions = path_points[1].positions;
 
     for (size_t j = 0; j + 1 < path_points.size(); ++j) {
-      pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 100);
+      pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 20);
+    }
+
+    // debug output
+    nav_msgs::msg::Path debug_path;
+    debug_path.header.frame_id = base_frame_id_;
+    debug_path.header.stamp = rclcpp::Time(0);
+
+    for (size_t i = 0; i < path_points.size(); ++i) {
+      KenFK fk(path_points[i].positions);
+      geometry_msgs::msg::PoseStamped pps;
+      pps.header = debug_path.header;
+      pps.pose = transform2pose(fk.computeTbe());
+      debug_path.poses.push_back(pps);
+    }
+
+    path_debug_pub_->publish(debug_path);
+
+  } else {
+    return false;
+  }
+
+  return true;
+}
+
+bool KenPathPlanner::makeDouTrajectory(
+  trajectory_msgs::msg::JointTrajectory & jtm, const std::vector<double> & current_pos,
+  const geometry_msgs::msg::Pose pose)
+{
+  jtm.header.stamp = rclcpp::Time(0);
+  jtm.joint_names = name_vec_;
+
+  std::vector<trajectory_msgs::msg::JointTrajectoryPoint> path_points(
+    6, trajectory_msgs::msg::JointTrajectoryPoint());
+
+  path_points[0].time_from_start = second2duration(0.0);
+  path_points[1].time_from_start = second2duration(dou_time_ * 0.2);
+  path_points[2].time_from_start = second2duration(dou_time_ * 0.4);
+  path_points[3].time_from_start = second2duration(dou_time_ * 0.6);
+  path_points[4].time_from_start = second2duration(dou_time_ * 0.8);
+  path_points[5].time_from_start = second2duration(dou_time_ * 1.0);
+
+  path_points[0].positions = current_pos;
+
+  std::vector<Eigen::Vector3d> target_pos;
+  target_pos.push_back(
+    Eigen::Vector3d(pose.position.x, pose.position.y + 0.1, pose.position.z + 0.15));
+  target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
+
+  KenIK ik;
+  std::vector<std::vector<double>> ik_ans(target_pos.size(), std::vector<double>());
+  bool is_ik_ok = true;
+
+  for (size_t i = 0; i < target_pos.size(); ++i) {
+    is_ik_ok = ik.calcPositionIK(target_pos[i], dou_base_pos_, ik_ans[i]);
+  }
+
+  if (is_ik_ok) {
+    publishIKlog(ik);
+
+    path_points[1].positions = ik_ans[0];
+    path_points[1].positions[3] = 0.0;
+    path_points[1].positions[4] = dou_base_pos_[4];
+
+    path_points[2].positions = ik_ans[0];
+
+    path_points[3].positions = ik_ans.back();
+
+    path_points[4].positions = path_points[2].positions;
+
+    path_points[5].positions = path_points[1].positions;
+
+    for (size_t j = 0; j + 1 < path_points.size(); ++j) {
+      pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 20);
     }
 
     // debug output
@@ -347,6 +420,13 @@ void KenPathPlanner::mission_target_callback(const ken_msgs::msg::MissionTargetA
       else
         is_planning_succeed_ &=
           makeRDouTrajectory(jt, mtm.trajectories.back().points.back().positions, msg->poses[i]);
+      jt_name = "dou";
+    } else if (msg->type[i] == msg->DOU) {
+      if (mtm.trajectories.empty())
+        is_planning_succeed_ &= makeDouTrajectory(jt, current_pos_, msg->poses[i]);
+      else
+        is_planning_succeed_ &=
+          makeDouTrajectory(jt, mtm.trajectories.back().points.back().positions, msg->poses[i]);
       jt_name = "dou";
     } else {
       is_planning_succeed_ = false;
