@@ -171,9 +171,9 @@ bool KenPathPlanner::makeMenTrajectory(
     5, trajectory_msgs::msg::JointTrajectoryPoint());
 
   path_points[0].time_from_start = second2duration(0.0);
-  path_points[1].time_from_start = second2duration(men_time_ * 0.3);
-  path_points[2].time_from_start = second2duration(men_time_ * 0.6);
-  path_points[3].time_from_start = second2duration(men_time_ * 0.7);
+  path_points[1].time_from_start = second2duration(men_time_ * 0.4);
+  path_points[2].time_from_start = second2duration(men_time_ * 0.7);
+  path_points[3].time_from_start = second2duration(men_time_ * 0.8);
   path_points[4].time_from_start = second2duration(men_time_ * 1.0);
 
   path_points[0].positions = current_pos;
@@ -226,7 +226,7 @@ bool KenPathPlanner::makeRDouTrajectory(
 
   std::vector<Eigen::Vector3d> target_pos;
   target_pos.push_back(
-    Eigen::Vector3d(pose.position.x, pose.position.y - 0.1, pose.position.z + 0.15));
+    Eigen::Vector3d(pose.position.x, pose.position.y - 0.15, pose.position.z + 0.1));
   target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
 
   KenIK ik;
@@ -299,7 +299,7 @@ bool KenPathPlanner::makeDouTrajectory(
 
   std::vector<Eigen::Vector3d> target_pos;
   target_pos.push_back(
-    Eigen::Vector3d(pose.position.x, pose.position.y + 0.1, pose.position.z + 0.15));
+    Eigen::Vector3d(pose.position.x, pose.position.y + 0.15, pose.position.z + 0.1));
   target_pos.push_back(Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z));
 
   KenIK ik;
@@ -315,7 +315,7 @@ bool KenPathPlanner::makeDouTrajectory(
 
     path_points[1].positions = ik_ans[0];
     path_points[1].positions[3] = 0.0;
-    path_points[1].positions[4] = dou_base_pos_[4];
+    path_points[1].positions[4] = 0.0;
 
     path_points[2].positions = ik_ans[0];
 
