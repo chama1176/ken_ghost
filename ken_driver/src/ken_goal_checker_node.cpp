@@ -3,6 +3,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <queue>
 #include <set>
 #include <string>
 
@@ -38,6 +39,8 @@ private:
   rclcpp::Subscription<trajectory_msgs::msg::JointTrajectory>::SharedPtr joint_trajectory_sub_;
 
   trajectory_msgs::msg::JointTrajectory last_joint_trajectory_;
+
+  std::queue<sensor_msgs::msg::JointState> joint_state_log_;
   double goal_thes_;
   int goal_status_count_;
 };
@@ -91,6 +94,7 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
   else
     is_goal.data = false;
   //TODO: 位置がずっと変わらない場合trueとする
+
   goal_state_pub_->publish(is_goal);
 }
 
