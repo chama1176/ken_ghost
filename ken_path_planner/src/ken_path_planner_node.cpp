@@ -213,14 +213,15 @@ bool KenPathPlanner::makeRDouTrajectory(
   jtm.joint_names = name_vec_;
 
   std::vector<trajectory_msgs::msg::JointTrajectoryPoint> path_points(
-    6, trajectory_msgs::msg::JointTrajectoryPoint());
+    7, trajectory_msgs::msg::JointTrajectoryPoint());
 
   path_points[0].time_from_start = second2duration(0.0);
-  path_points[1].time_from_start = second2duration(dou_time_ * 0.2);
-  path_points[2].time_from_start = second2duration(dou_time_ * 0.4);
-  path_points[3].time_from_start = second2duration(dou_time_ * 0.6);
-  path_points[4].time_from_start = second2duration(dou_time_ * 0.8);
-  path_points[5].time_from_start = second2duration(dou_time_ * 1.0);
+  path_points[1].time_from_start = second2duration(dou_time_ * 0.3);
+  path_points[2].time_from_start = second2duration(dou_time_ * 0.5);
+  path_points[3].time_from_start = second2duration(dou_time_ * 0.68);
+  path_points[4].time_from_start = second2duration(dou_time_ * 0.7);
+  path_points[5].time_from_start = second2duration(dou_time_ * 0.85);
+  path_points[6].time_from_start = second2duration(dou_time_ * 1.0);
 
   path_points[0].positions = current_pos;
 
@@ -247,10 +248,11 @@ bool KenPathPlanner::makeRDouTrajectory(
     path_points[2].positions = ik_ans[0];
 
     path_points[3].positions = ik_ans.back();
+    path_points[4].positions = ik_ans.back();
 
-    path_points[4].positions = path_points[2].positions;
+    path_points[5].positions = path_points[2].positions;
 
-    path_points[5].positions = path_points[1].positions;
+    path_points[6].positions = path_points[1].positions;
 
     for (size_t j = 0; j + 1 < path_points.size(); ++j) {
       pushInterpolateTrajectoryPoints(jtm, path_points[j], path_points[j + 1], 20);

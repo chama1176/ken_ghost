@@ -41,11 +41,16 @@ private:
   trajectory_msgs::msg::JointTrajectory last_joint_trajectory_;
 
   std::queue<sensor_msgs::msg::JointState> joint_state_log_;
+  sensor_msgs::msg::JointState last_moved_joint_state_;
+  int stop_count_;
+  double stop_thes_;
+
   double goal_thes_;
   int goal_status_count_;
 };
 
-KenGoalChecker::KenGoalChecker() : Node("ken_goal_checker_node"), goal_status_count_(0)
+KenGoalChecker::KenGoalChecker()
+: Node("ken_goal_checker_node"), stop_count_(0), goal_status_count_(0)
 {
   goal_state_pub_ = this->create_publisher<std_msgs::msg::Bool>("goal_status", 1);
 
@@ -56,6 +61,7 @@ KenGoalChecker::KenGoalChecker() : Node("ken_goal_checker_node"), goal_status_co
     std::bind(&KenGoalChecker::jointTrajectoryCallback, this, _1));
 
   goal_thes_ = 10.0 * M_PI / 180.0;
+  stop_thes_ = 1 * M_PI / 180;
   last_joint_trajectory_ = trajectory_msgs::msg::JointTrajectory();
 
   std::cout << "Finish Initialization" << std::endl;
@@ -89,11 +95,32 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
     goal_status_count_ = 0;
 
   std_msgs::msg::Bool is_goal;
-  if (goal_status_count_ >= 10)
+  if (goal_status_count_ >= 10) {
     is_goal.data = true;
-  else
+    stop_count_ = 0;
+  } else {
     is_goal.data = false;
-  //TODO: 位置がずっと変わらない場合trueとする
+    // 位置がずっと変わらない場合trueとする
+    bool stop_check = true;
+    if (last_moved_joint_state_.position.empty()) {
+      last_moved_joint_state_ = *msg;
+    } else {
+      for (size_t i = 0; i < msg->position.size(); ++i) {
+        stop_check &= std::abs(msg->position[i] - last_moved_joint_state_.position[i]) < stop_thes_;
+      }
+    }
+    if (stop_check) {
+      ++stop_count_;
+      std::cout << "stop" << stop_count_ << "times" << std::endl;
+    } else {
+      stop_count_ = 0;
+      last_moved_joint_state_ = *msg;
+    }
+    if (stop_count_ >= 50) {
+      is_goal.data = true;
+      std::cout << "stop now" << std::endl;
+    }
+  }
 
   goal_state_pub_->publish(is_goal);
 }
@@ -102,6 +129,8 @@ void KenGoalChecker::jointTrajectoryCallback(
   const trajectory_msgs::msg::JointTrajectory::SharedPtr msg)
 {
   last_joint_trajectory_ = *msg;
+  stop_count_ = 0;
+  goal_status_count_ = 0;
 }
 
 int main(int argc, char * argv[])
