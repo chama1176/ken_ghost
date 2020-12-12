@@ -78,6 +78,11 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
     for (size_t i = 0; i < msg->position.size(); ++i) {
       bool is_in_range =
         std::abs(msg->position[i] - last_joint_trajectory_.points.back().positions[i]) < goal_thes_;
+      // 3のサーボが変
+      if (i == 3)
+        is_in_range =
+          std::abs(msg->position[i] - last_joint_trajectory_.points.back().positions[i]) <
+          goal_thes_ * 1.5;
       is_goal_now &= is_in_range;
       if (!is_in_range) {
         std::cout << i << " : " << msg->position[i] << " : "
@@ -95,7 +100,7 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
     goal_status_count_ = 0;
 
   std_msgs::msg::Bool is_goal;
-  if (goal_status_count_ >= 10) {
+  if (goal_status_count_ >= 5) {
     is_goal.data = true;
     stop_count_ = 0;
   } else {
@@ -116,7 +121,7 @@ void KenGoalChecker::jointStateCallback(const sensor_msgs::msg::JointState::Shar
       stop_count_ = 0;
       last_moved_joint_state_ = *msg;
     }
-    if (stop_count_ >= 50) {
+    if (stop_count_ >= 20) {
       is_goal.data = true;
       std::cout << "stop now" << std::endl;
     }

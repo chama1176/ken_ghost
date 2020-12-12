@@ -15,6 +15,6 @@ ken_path_planner:
 
     joint_num: 5
 
-    men_time: 0.6
-    dou_time: 1.0
+    men_time: 0.5
+    dou_time: 0.8
     move_time: 0.3
